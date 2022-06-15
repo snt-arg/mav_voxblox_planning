@@ -89,32 +89,9 @@ void SkeletonizerNode::init() {
   nh_private_.param("min_gvd_distance", min_gvd_distance_, min_gvd_distance_);
   skeleton_generator_.setMinGvdDistance(min_gvd_distance_);
 
-  esdf_update_timer_ = nh_.createWallTimer(ros::WallDuration(1.0), &SkeletonizerNode::updateEsdf, this);
-  skeleton_generator_timer_ = nh_.createWallTimer(ros::WallDuration(10.0), &SkeletonizerNode::generateSkeleton, this);
-  if (input_filepath_.empty()) {
-    return;
-  }
+  skeleton_generator_timer_ = nh_.createWallTimer(ros::WallDuration(20.0), &SkeletonizerNode::generateSkeleton, this);
 }
   
-void SkeletonizerNode::updateEsdf(const ros::WallTimerEvent& event) {
-    //esdf_server_.loadMap(input_filepath_);
-
-    esdf_server_.disableIncrementalUpdate();
-    if (update_esdf_ ||
-        esdf_server_.getEsdfMapPtr()
-                ->getEsdfLayerPtr()
-                ->getNumberOfAllocatedBlocks() == 0) {
-      const bool full_euclidean_distance = true;
-      esdf_server_.updateEsdfBatch(full_euclidean_distance);
-    }
-
-    // Visualize all parts.
-    esdf_server_.updateMesh();
-    esdf_server_.publishPointclouds();
-    esdf_server_.publishMap();
-    ROS_INFO("Finished updating ESDF.");
-}
-
 void SkeletonizerNode::generateSkeleton(const ros::WallTimerEvent& event) {
   // Skeletonize????
   voxblox::Pointcloud pointcloud;
@@ -127,27 +104,6 @@ void SkeletonizerNode::generateSkeleton(const ros::WallTimerEvent& event) {
   pointcloudToPclXYZI(pointcloud, distances, &ptcloud_pcl);
   ptcloud_pcl.header.frame_id = frame_id_;
   skeleton_pub_.publish(ptcloud_pcl);
-
-  // Optionally save back to file.
-  // if (!output_filepath_.empty()) {
-  //   // Put the TSDF, ESDF, and skeleton layer in the same bucket.
-  //   if (esdf_server_.saveMap(output_filepath_)) {
-  //     constexpr bool kClearFile = false;
-  //     io::SaveLayer<SkeletonVoxel>(*skeleton_generator_.getSkeletonLayer(),
-  //                                  output_filepath_, kClearFile);
-  //     ROS_INFO("Output map to: %s", output_filepath_.c_str());
-  //   } else {
-  //     ROS_ERROR("Couldn't output map to: %s", output_filepath_.c_str());
-  //   }
-  // }
-  // if (!sparse_graph_filepath_.empty()) {
-  //   if (skeleton_generator_.saveSparseGraphToFile(sparse_graph_filepath_)) {
-  //     ROS_INFO("Output sparse graph to: %s", sparse_graph_filepath_.c_str());
-  //   } else {
-  //    ROS_ERROR("Couldn't output sparse graph to: %s",
-  //              sparse_graph_filepath_.c_str());
-  //   }
-  // }
 } 
 
 void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
@@ -184,14 +140,6 @@ int main(int argc, char** argv) {
   voxblox::SkeletonizerNode node(nh, nh_private);
   node.init();
   ros::spin();
-  //ros::Rate loop_rate(1); 
-  //TODO: Add two parallel loop here
-  // while (ros::ok()) {
-  //   node.updateEsdf();
-  //   ros::spinOnce();
-  //   //loop_rate.sleep();
-  //   usleep(3e6);
-  // }
  
   return 0;
 }
