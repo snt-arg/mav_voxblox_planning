@@ -57,7 +57,7 @@ inline void visualizeSkeletonGraph(
 
     if (visualize_subgraphs) {
       std_msgs::ColorRGBA color_msg;
-      Color color = rainbowColorMap(vertex.subgraph_id % 10 / 10.0);
+      Color color = grayColorMap(vertex.subgraph_id % 100 / 10.0);
       colorVoxbloxToMsg(color, &color_msg);
       vertex_marker.colors.push_back(color_msg);
     }
