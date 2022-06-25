@@ -55,6 +55,11 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_proto)
 ############
 # BINARIES #
 ############
+cs_add_executable(skeletonizer_realtime
+  src/skeletonizer_realtime.cpp
+)
+target_link_libraries(skeletonizer_realtime ${PROJECT_NAME})
+
 cs_add_executable(skeletonizer
   src/skeletonizer.cpp
 )
