@@ -9,7 +9,7 @@
   <arg name="sparse_graph_path" default="$(arg base_path)/$(arg sparse_graph_name)" />
   <arg name="frame_id" default="map" />
 
-  <node name="voxblox_skeletonizer_realtime" pkg="voxblox_skeleton" type="skeletonizer_realtime" output="screen" clear_params="true" args="-v=1">
+  <node name="voxblox_skeletonizer" pkg="voxblox_skeleton" type="skeletonizer_realtime" output="screen" clear_params="true" args="-v=1">
     <remap from="pointcloud" to="/platform/velodyne_points"/>
     <param name="input_filepath" value="$(arg voxblox_path)" />
     <param name="output_filepath" value="$(arg output_path)" />
@@ -19,7 +19,7 @@
     <!-- If using quasi-Euclidean: 1.57 (90 degrees) -->
     <param name="min_separation_angle" value="0.78" />
     <param name="update_esdf" value="false" />
-    <param name="min_gvd_distance" value="0.8" />
+    <param name="min_gvd_distance" value="0.5" />
     <param name="tsdf_voxel_size" value="0.1" />
     <param name="esdf_max_distance_m" value="5.0" />
     <param name="esdf_min_diff_m" value="0.0" />
