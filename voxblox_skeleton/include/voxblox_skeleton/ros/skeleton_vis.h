@@ -157,6 +157,7 @@ inline void visualizeSkeletonGraph(
 
   // Get all edges and visualize as lines.
   std::vector<int64_t> edge_ids;
+  std::vector<int64_t> deleted_edge_ids;
   std::vector<int64_t> closed_space_edge_ids;
   graph.getAllEdgeIds(&edge_ids);
 
@@ -182,28 +183,101 @@ inline void visualizeSkeletonGraph(
     
     auto it_start = std::find(deleted_vertex_ids.begin(), deleted_vertex_ids.end(), start_vertex_id);
     auto it_end = std::find(deleted_vertex_ids.begin(), deleted_vertex_ids.end(), end_vertex_id);
-
-    if(it_start != deleted_vertex_ids.end() || it_end != deleted_vertex_ids.end()) 
-      continue;
-
-    closed_space_edge_ids.push_back(edge_id);
+    
     tf::pointEigenToMsg(edge.start_point.cast<double>(), point_msg);
     edge_marker.points.push_back(point_msg);
     tf::pointEigenToMsg(edge.end_point.cast<double>(), point_msg);
     edge_marker.points.push_back(point_msg);
+    //vertex is found
+    if(it_start != deleted_vertex_ids.end() || it_end != deleted_vertex_ids.end()) {
+      // std_msgs::ColorRGBA color_msg;
+      // color_msg.r = 0; color_msg.g = 0; color_msg.b = 0; color_msg.a =1;
+      // edge_marker.colors.push_back(color_msg);
+      deleted_edge_ids.push_back(edge_id);
+      continue;
+    }
+    closed_space_edge_ids.push_back(edge_id);
   }
   marker_array->markers.push_back(edge_marker);
 
   int64_t subgraph_id = 0;
-  for(connected_vertices_struct connected_vertex : connected_vertices_struct_vec) {
+  for(connected_vertices_struct& connected_vertex : connected_vertices_struct_vec) {
     if(connected_vertex.visited == false) {
       connected_vertex.visited = true;
       connected_vertex.subgraph_id = subgraph_id;
-      connected_components(subgraph_id, graph, connected_vertex, connected_vertices_struct_vec, closed_space_edge_ids);
+      connected_components(subgraph_id, graph, connected_vertex, connected_vertices_struct_vec, closed_space_edge_ids);      
       subgraph_id++;      
     }    
   }
-  std::cout << "subgraph id: " << subgraph_id << std::endl; 
+
+  std::vector<std::vector<SkeletonVertex> > connected_vertex_vec;
+  connected_vertex_vec.resize(subgraph_id+1); 
+  for(int64_t current_subgraph_id = 0; current_subgraph_id <subgraph_id; ++current_subgraph_id) {
+    for(connected_vertices_struct connected_vertex : connected_vertices_struct_vec) {
+      if(connected_vertex.subgraph_id == current_subgraph_id) {
+        SkeletonVertex current_vertex = connected_vertex.vertex;
+        connected_vertex_vec[current_subgraph_id].push_back(current_vertex);
+      }
+    }
+  }
+
+  // merge the deleted components to the appropriate subgraphs
+  for(int64_t deleted_vertex_id : deleted_vertex_ids) {
+    //get the vertex object given its id
+    const SkeletonVertex& deleted_vertex = graph.getVertex(deleted_vertex_id);
+    std::vector<int64_t> deleted_vertex_edge_list = deleted_vertex.edge_list;
+
+    for(int64_t deleted_vertex_edge_id : deleted_vertex_edge_list) {
+      const SkeletonEdge& connected_edge = graph.getEdge(deleted_vertex_edge_id);
+      if(connected_edge.start_vertex != deleted_vertex.vertex_id) {
+        //this is the neighbour vertex and now check to which subgraph it belongs to  
+        // and then assign this poor vertex to the subgraph 
+        auto connected_vertex = std::find_if(connected_vertices_struct_vec.begin(), connected_vertices_struct_vec.end(), boost::bind(&connected_vertices_struct::id, _1) == connected_edge.start_vertex);
+        //if vertex exist then find its subgraph id and assign the deleted vertex to the subgraph
+        if(connected_vertex != connected_vertices_struct_vec.end()) {
+          SkeletonVertex current_deleted_vertex = deleted_vertex;
+          connected_vertex_vec[(*connected_vertex).subgraph_id].push_back(current_deleted_vertex);
+          break; 
+        }else 
+          continue;    
+    } 
+    else if(connected_edge.end_vertex != deleted_vertex.vertex_id) {
+      auto connected_vertex = std::find_if(connected_vertices_struct_vec.begin(), connected_vertices_struct_vec.end(), boost::bind(&connected_vertices_struct::id, _1) == connected_edge.end_vertex);
+      if(connected_vertex != connected_vertices_struct_vec.end()) {
+        SkeletonVertex current_deleted_vertex = deleted_vertex;
+        connected_vertex_vec[(*connected_vertex).subgraph_id].push_back(current_deleted_vertex); 
+        break;
+      }else
+        continue;
+    }
+   }
+  }
+
+  for(int i=0; i< connected_vertex_vec.size(); ++i) {
+    visualization_msgs::Marker connected_vertex_marker;
+    connected_vertex_marker.header.frame_id = frame_id;
+    connected_vertex_marker.ns = "connected_vertices_" + std::to_string(i);
+    connected_vertex_marker.pose.orientation.w = 1.0;
+    connected_vertex_marker.scale.x = 0.2;
+    connected_vertex_marker.scale.y = connected_vertex_marker.scale.x;
+    connected_vertex_marker.scale.z = connected_vertex_marker.scale.x;
+    connected_vertex_marker.color.r = 1.0;
+    connected_vertex_marker.color.a = 1.0;
+    connected_vertex_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    for(int j=0; j<connected_vertex_vec[i].size(); ++j) {
+      geometry_msgs::Point point_msg;
+      tf::pointEigenToMsg(connected_vertex_vec[i][j].point.cast<double>(), point_msg);
+      connected_vertex_marker.points.push_back(point_msg);
+      std_msgs::ColorRGBA color_msg;
+      Color color = rainbowColorMap(i % 100 / 10.0);
+      colorVoxbloxToMsg(color, &color_msg);
+      connected_vertex_marker.colors.push_back(color_msg);
+    }
+    marker_array->markers.push_back(connected_vertex_marker);
+  }
+ 
+  //TODO: HB find connections between subgraphs to find doors/openings to connect adjacent rooms 
+
  }
 }  // namespace voxblox
 
