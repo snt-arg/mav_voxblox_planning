@@ -121,7 +121,7 @@ void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
   // Now visualize the graph.
   const SparseSkeletonGraph& graph = skeleton_generator_.getSparseGraph();
   visualization_msgs::MarkerArray marker_array;
-  visualizeSkeletonGraph(graph, frame_id_, &marker_array);
+  visualizeSkeletonGraph(graph, "map_elevated", &marker_array);
   sparse_graph_pub_.publish(marker_array);
 }
 

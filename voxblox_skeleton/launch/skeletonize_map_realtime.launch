@@ -31,4 +31,6 @@
     <param name="verbose" value="false" />
   </node>
 
+  <node pkg="tf" type="static_transform_publisher" name="map_to_map_elevated" args="0 0 6.0 0 0 0 map map_elevated 100" />
+
 </launch>
