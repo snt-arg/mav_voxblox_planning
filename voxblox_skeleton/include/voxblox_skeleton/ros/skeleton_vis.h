@@ -116,7 +116,6 @@ inline void visualizeSkeletonGraph(
 
     connected_vertices_struct connected_vertex;
     if (vertex.distance > 0.8) {
-      
       closed_space_marker.points.push_back(point_msg);
       connected_vertex.id = vertex_id;
       connected_vertex.visited = false;
@@ -276,6 +275,18 @@ inline void visualizeSkeletonGraph(
     connected_vertex_marker.color.r = 1.0;
     connected_vertex_marker.color.a = 1.0;
     connected_vertex_marker.type = visualization_msgs::Marker::CUBE_LIST;
+    
+     visualization_msgs::Marker connected_edge_marker;
+    connected_edge_marker.header.frame_id = frame_id;
+    connected_edge_marker.ns = "connected_edges_" + std::to_string(i);
+    connected_edge_marker.pose.orientation.w = 1.0;
+    connected_edge_marker.scale.x = 0.05;
+    connected_edge_marker.scale.y = connected_vertex_marker.scale.x;
+    connected_edge_marker.scale.z = connected_vertex_marker.scale.x;
+    connected_edge_marker.color.b = 1.0;
+    connected_edge_marker.color.a = 1.0;
+    connected_edge_marker.type = visualization_msgs::Marker::LINE_LIST;
+    
     for(int j=0; j<connected_vertex_vec[i].size(); ++j) {
       geometry_msgs::Point point_msg;
       tf::pointEigenToMsg(connected_vertex_vec[i][j].point.cast<double>(), point_msg);
@@ -284,26 +295,37 @@ inline void visualizeSkeletonGraph(
       Color color = rainbowColorMap(i % 100 / 10.0);
       colorVoxbloxToMsg(color, &color_msg);
       connected_vertex_marker.colors.push_back(color_msg);
+
+      for(int64_t edge_id : connected_vertex_vec[i][j].edge_list) {
+        geometry_msgs::Point point_msg;
+        const SkeletonEdge& edge = graph.getEdge(edge_id);
+        int64_t start_vertex_id = edge.start_vertex;
+        int64_t end_vertex_id = edge.end_vertex;
+        tf::pointEigenToMsg(edge.start_point.cast<double>(), point_msg);
+        connected_edge_marker.points.push_back(point_msg);
+        tf::pointEigenToMsg(edge.end_point.cast<double>(), point_msg);
+        connected_edge_marker.points.push_back(point_msg);
+      }   
     }
     marker_array->markers.push_back(connected_vertex_marker);
+    marker_array->markers.push_back(connected_edge_marker);
   }
  
   //find connections between subgraphs to find doors/openings to connect adjacent rooms 
   for(int i=0; i< connected_vertex_vec.size(); ++i) {
-    visualization_msgs::Marker subgraph_edge_marker;
-    subgraph_edge_marker.header.frame_id = frame_id;
-    subgraph_edge_marker.ns = "subgraph_edges_" + std::to_string(i);
-    subgraph_edge_marker.pose.orientation.w = 1.0;
-    subgraph_edge_marker.scale.x = 0.11;
-    subgraph_edge_marker.scale.y = subgraph_edge_marker.scale.x;
-    subgraph_edge_marker.scale.z = subgraph_edge_marker.scale.x;
-    subgraph_edge_marker.color.r = 1.0;
-    subgraph_edge_marker.color.g = 0.0;
-    subgraph_edge_marker.color.b = 0.0;
-    subgraph_edge_marker.color.a = 1.0;
-    subgraph_edge_marker.type = visualization_msgs::Marker::LINE_LIST;
-  
     for(int j=0; j<connected_vertex_vec[i].size(); ++j) {
+      visualization_msgs::Marker subgraph_edge_marker;
+      subgraph_edge_marker.header.frame_id = frame_id;
+      subgraph_edge_marker.pose.orientation.w = 1.0;
+      subgraph_edge_marker.scale.x = 0.11;
+      subgraph_edge_marker.scale.y = subgraph_edge_marker.scale.x;
+      subgraph_edge_marker.scale.z = subgraph_edge_marker.scale.x;
+      subgraph_edge_marker.color.r = 1.0;
+      subgraph_edge_marker.color.g = 0.0;
+      subgraph_edge_marker.color.b = 0.0;
+      subgraph_edge_marker.color.a = 1.0;
+      subgraph_edge_marker.type = visualization_msgs::Marker::LINE_STRIP;
+      int neigbouring_subgraph_id = -1;
      //get the vertex and its edges
      for(int64_t edge_id : connected_vertex_vec[i][j].edge_list) {
       const SkeletonEdge& connected_edge = graph.getEdge(edge_id);
@@ -312,6 +334,7 @@ inline void visualizeSkeletonGraph(
         //if the vertex subgraph id is not equal to the current subgraph id, then its a connecting edge between subgraphs
         if(connected_vertex != connected_vertices_struct_vec.end() && (*connected_vertex).subgraph_id != i) {
           //add the edge between subgraphs here
+          neigbouring_subgraph_id = (*connected_vertex).subgraph_id;
           geometry_msgs::Point point_msg;
           tf::pointEigenToMsg(connected_edge.start_point.cast<double>(), point_msg);
           subgraph_edge_marker.points.push_back(point_msg);
@@ -322,6 +345,7 @@ inline void visualizeSkeletonGraph(
           auto connected_vertex = std::find_if(connected_vertices_struct_vec.begin(), connected_vertices_struct_vec.end(), boost::bind(&connected_vertices_struct::id, _1) == connected_edge.end_vertex);
           if(connected_vertex != connected_vertices_struct_vec.end() && (*connected_vertex).subgraph_id != i) {
             //add the edge between subgraphs here
+            neigbouring_subgraph_id = (*connected_vertex).subgraph_id;
             geometry_msgs::Point point_msg;
             tf::pointEigenToMsg(connected_edge.start_point.cast<double>(), point_msg);
             subgraph_edge_marker.points.push_back(point_msg);
@@ -329,13 +353,18 @@ inline void visualizeSkeletonGraph(
             subgraph_edge_marker.points.push_back(point_msg);
           }
         }
+        if(neigbouring_subgraph_id != -1) {
+        subgraph_edge_marker.ns = "subgraph_edges_" + std::to_string(i) + "_" + std::to_string(neigbouring_subgraph_id);
+        int id1 = i; int id2 = neigbouring_subgraph_id;
+        int combined_ids = id1 << 8 | id2;
+        subgraph_edge_marker.id = combined_ids;
+        marker_array->markers.push_back(subgraph_edge_marker);
+        }
       }
     }
-    marker_array->markers.push_back(subgraph_edge_marker);
-  }
-
-
+   }
  }
+
 }  // namespace voxblox
 
 #endif  // VOXBLOX_SKELETON_ROS_SKELETON_VIS_H_
