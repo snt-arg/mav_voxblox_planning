@@ -1,7 +1,7 @@
+#include <ros/wall_timer_options.h>
 #include <voxblox/core/esdf_map.h>
 #include <voxblox/core/tsdf_map.h>
 #include <voxblox/integrator/merge_integration.h>
-
 #include <voxblox_ros/conversions.h>
 #include <voxblox_ros/esdf_server.h>
 #include <voxblox_ros/mesh_pcl.h>
@@ -11,8 +11,6 @@
 #include "voxblox_skeleton/io/skeleton_io.h"
 #include "voxblox_skeleton/ros/skeleton_vis.h"
 #include "voxblox_skeleton/skeleton_generator.h"
-
-#include <ros/wall_timer_options.h>
 
 namespace voxblox {
 
@@ -32,9 +30,9 @@ class SkeletonizerNode {
   // Initialize the node.
   void init();
   // Update ESDF
-  void updateEsdf(const ros::WallTimerEvent& event);
+  void updateEsdf(const ros::TimerEvent& event);
   // Start skeleton generation
-  void generateSkeleton(const ros::WallTimerEvent& event);
+  void generateSkeleton(const ros::TimerEvent& event);
 
   // Make a skeletor!!!
   void skeletonize(Layer<EsdfVoxel>* esdf_layer, voxblox::Pointcloud* skeleton,
@@ -53,7 +51,7 @@ class SkeletonizerNode {
 
   SkeletonGenerator skeleton_generator_;
 
-  //ros params
+  // ros params
   FloatingPoint min_separation_angle_;
   bool generate_by_layer_neighbors_;
   int num_neighbors_for_edge_;
@@ -61,38 +59,44 @@ class SkeletonizerNode {
   bool update_esdf_;
   std::string input_filepath_, output_filepath_, sparse_graph_filepath_;
 
-  ros::WallTimer esdf_update_timer_, skeleton_generator_timer_;
+  ros::Timer esdf_update_timer_, skeleton_generator_timer_;
 };
 
 void SkeletonizerNode::init() {
   // Load a file from the params.
   nh_private_.param("input_filepath", input_filepath_, input_filepath_);
   nh_private_.param("output_filepath", output_filepath_, output_filepath_);
-  nh_private_.param("sparse_graph_filepath", sparse_graph_filepath_, sparse_graph_filepath_);
+  nh_private_.param("sparse_graph_filepath", sparse_graph_filepath_,
+                    sparse_graph_filepath_);
   nh_private_.param("frame_id", frame_id_, frame_id_);
   update_esdf_ = false;
   nh_private_.param("update_esdf", update_esdf_, update_esdf_);
 
   min_separation_angle_ = skeleton_generator_.getMinSeparationAngle();
-  nh_private_.param("min_separation_angle", min_separation_angle_, min_separation_angle_);
+  nh_private_.param("min_separation_angle", min_separation_angle_,
+                    min_separation_angle_);
   skeleton_generator_.setMinSeparationAngle(min_separation_angle_);
-  
-  generate_by_layer_neighbors_ = skeleton_generator_.getGenerateByLayerNeighbors();
-  nh_private_.param("generate_by_layer_neighbors", generate_by_layer_neighbors_, generate_by_layer_neighbors_);
+
+  generate_by_layer_neighbors_ =
+      skeleton_generator_.getGenerateByLayerNeighbors();
+  nh_private_.param("generate_by_layer_neighbors", generate_by_layer_neighbors_,
+                    generate_by_layer_neighbors_);
   skeleton_generator_.setGenerateByLayerNeighbors(generate_by_layer_neighbors_);
 
   num_neighbors_for_edge_ = skeleton_generator_.getNumNeighborsForEdge();
-  nh_private_.param("num_neighbors_for_edge", num_neighbors_for_edge_, num_neighbors_for_edge_);
+  nh_private_.param("num_neighbors_for_edge", num_neighbors_for_edge_,
+                    num_neighbors_for_edge_);
   skeleton_generator_.setNumNeighborsForEdge(num_neighbors_for_edge_);
 
   min_gvd_distance_ = skeleton_generator_.getMinGvdDistance();
   nh_private_.param("min_gvd_distance", min_gvd_distance_, min_gvd_distance_);
   skeleton_generator_.setMinGvdDistance(min_gvd_distance_);
 
-  skeleton_generator_timer_ = nh_.createWallTimer(ros::WallDuration(20.0), &SkeletonizerNode::generateSkeleton, this);
+  skeleton_generator_timer_ = nh_.createTimer(
+      ros::Duration(5.0), &SkeletonizerNode::generateSkeleton, this);
 }
-  
-void SkeletonizerNode::generateSkeleton(const ros::WallTimerEvent& event) {
+
+void SkeletonizerNode::generateSkeleton(const ros::TimerEvent& event) {
   // Skeletonize????
   voxblox::Pointcloud pointcloud;
   std::vector<float> distances;
@@ -104,14 +108,15 @@ void SkeletonizerNode::generateSkeleton(const ros::WallTimerEvent& event) {
   pointcloudToPclXYZI(pointcloud, distances, &ptcloud_pcl);
   ptcloud_pcl.header.frame_id = frame_id_;
   skeleton_pub_.publish(ptcloud_pcl);
-} 
+}
 
 void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
                                    voxblox::Pointcloud* pointcloud,
                                    std::vector<float>* distances) {
   skeleton_generator_.setEsdfLayer(esdf_layer);
   skeleton_generator_.generateSkeleton();
-  skeleton_generator_.getSkeleton().getEdgePointcloudWithDistances(pointcloud, distances);
+  skeleton_generator_.getSkeleton().getEdgePointcloudWithDistances(pointcloud,
+                                                                   distances);
   ROS_INFO("Finished generating skeleton.");
 
   skeleton_generator_.generateSparseGraph();
@@ -140,6 +145,6 @@ int main(int argc, char** argv) {
   voxblox::SkeletonizerNode node(nh, nh_private);
   node.init();
   ros::spin();
- 
+
   return 0;
 }
