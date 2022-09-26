@@ -10,7 +10,7 @@
   <arg name="frame_id" default="map" />
 
   <node name="voxblox_skeletonizer" pkg="voxblox_skeleton" type="skeletonizer_realtime" output="log" clear_params="true" args="-v=0">
-    <remap from="pointcloud" to="/platform/velodyne_points"/>
+    <remap from="pointcloud" to="/hdl_prefilter/filtered_point_cloud"/>
     <param name="color_mode" value="lambert" />
     <param name="input_filepath" value="$(arg voxblox_path)" />
     <param name="output_filepath" value="$(arg output_path)" />
@@ -21,7 +21,7 @@
     <!-- If using full euclidean: 0.78 (45 degrees) -->
     <!-- If using quasi-Euclidean: 1.57 (90 degrees) -->
     <param name="min_separation_angle" value="0.78" />
-    <param name="update_esdf" value="false" />
+    <param name="update_esdf" value="true" />
     <param name="min_gvd_distance" value="0.5" />
     <param name="tsdf_voxel_size" value="0.2" />
     <param name="esdf_max_distance_m" value="5.0" />
