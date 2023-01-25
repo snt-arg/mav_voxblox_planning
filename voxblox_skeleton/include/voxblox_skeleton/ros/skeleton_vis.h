@@ -350,79 +350,80 @@ inline void visualizeSkeletonGraph(
     marker_array->markers.push_back(connected_edge_marker);
   }
 
-  // find connections between subgraphs to find doors/openings to connect
-  // adjacent rooms
-  for (int i = 0; i < connected_vertex_vec.size(); ++i) {
-    for (int j = 0; j < connected_vertex_vec[i].size(); ++j) {
-      visualization_msgs::Marker subgraph_edge_marker;
-      subgraph_edge_marker.header.frame_id = frame_id;
-      subgraph_edge_marker.pose.orientation.w = 1.0;
-      subgraph_edge_marker.scale.x = 0.02;
-      subgraph_edge_marker.scale.y = subgraph_edge_marker.scale.x;
-      subgraph_edge_marker.scale.z = subgraph_edge_marker.scale.x;
-      subgraph_edge_marker.color.r = 1.0;
-      subgraph_edge_marker.color.g = 0.0;
-      subgraph_edge_marker.color.b = 0.0;
-      subgraph_edge_marker.color.a = 1.0;
-      subgraph_edge_marker.type = visualization_msgs::Marker::LINE_STRIP;
-      int neigbouring_subgraph_id = -1;
-      // get the vertex and its edges
-      for (int64_t edge_id : connected_vertex_vec[i][j].edge_list) {
-        const SkeletonEdge& connected_edge = graph.getEdge(edge_id);
-        if (connected_edge.start_vertex !=
-            connected_vertex_vec[i][j].vertex_id) {
-          auto connected_vertex =
-              std::find_if(connected_vertices_struct_vec.begin(),
-                           connected_vertices_struct_vec.end(),
-                           boost::bind(&connected_vertices_struct::id, _1) ==
-                               connected_edge.start_vertex);
-          // if the vertex subgraph id is not equal to the current subgraph id,
-          // then its a connecting edge between subgraphs
-          if (connected_vertex != connected_vertices_struct_vec.end() &&
-              (*connected_vertex).subgraph_id != i) {
-            // add the edge between subgraphs here
-            neigbouring_subgraph_id = (*connected_vertex).subgraph_id;
-            geometry_msgs::Point point_msg;
-            tf::pointEigenToMsg(connected_edge.start_point.cast<double>(),
-                                point_msg);
-            subgraph_edge_marker.points.push_back(point_msg);
-            tf::pointEigenToMsg(connected_edge.end_point.cast<double>(),
-                                point_msg);
-            subgraph_edge_marker.points.push_back(point_msg);
-          }
-        } else if (connected_edge.end_vertex !=
-                   connected_vertex_vec[i][j].vertex_id) {
-          auto connected_vertex =
-              std::find_if(connected_vertices_struct_vec.begin(),
-                           connected_vertices_struct_vec.end(),
-                           boost::bind(&connected_vertices_struct::id, _1) ==
-                               connected_edge.end_vertex);
-          if (connected_vertex != connected_vertices_struct_vec.end() &&
-              (*connected_vertex).subgraph_id != i) {
-            // add the edge between subgraphs here
-            neigbouring_subgraph_id = (*connected_vertex).subgraph_id;
-            geometry_msgs::Point point_msg;
-            tf::pointEigenToMsg(connected_edge.start_point.cast<double>(),
-                                point_msg);
-            subgraph_edge_marker.points.push_back(point_msg);
-            tf::pointEigenToMsg(connected_edge.end_point.cast<double>(),
-                                point_msg);
-            subgraph_edge_marker.points.push_back(point_msg);
-          }
-        }
-        if (neigbouring_subgraph_id != -1) {
-          subgraph_edge_marker.ns = "subgraph_edges_" + std::to_string(i) +
-                                    "_" +
-                                    std::to_string(neigbouring_subgraph_id);
-          int id1 = i;
-          int id2 = neigbouring_subgraph_id;
-          int combined_ids = id1 << 8 | id2;
-          subgraph_edge_marker.id = combined_ids;
-          marker_array->markers.push_back(subgraph_edge_marker);
-        }
-      }
-    }
-  }
+  // // find connections between subgraphs to find doors/openings to connect
+  // // adjacent rooms
+  // for (int i = 0; i < connected_vertex_vec.size(); ++i) {
+  //   for (int j = 0; j < connected_vertex_vec[i].size(); ++j) {
+  //     visualization_msgs::Marker subgraph_edge_marker;
+  //     subgraph_edge_marker.header.frame_id = frame_id;
+  //     subgraph_edge_marker.pose.orientation.w = 1.0;
+  //     subgraph_edge_marker.scale.x = 0.02;
+  //     subgraph_edge_marker.scale.y = subgraph_edge_marker.scale.x;
+  //     subgraph_edge_marker.scale.z = subgraph_edge_marker.scale.x;
+  //     subgraph_edge_marker.color.r = 1.0;
+  //     subgraph_edge_marker.color.g = 0.0;
+  //     subgraph_edge_marker.color.b = 0.0;
+  //     subgraph_edge_marker.color.a = 1.0;
+  //     subgraph_edge_marker.type = visualization_msgs::Marker::LINE_STRIP;
+  //     int neigbouring_subgraph_id = -1;
+  //     // get the vertex and its edges
+  //     for (int64_t edge_id : connected_vertex_vec[i][j].edge_list) {
+  //       const SkeletonEdge& connected_edge = graph.getEdge(edge_id);
+  //       if (connected_edge.start_vertex !=
+  //           connected_vertex_vec[i][j].vertex_id) {
+  //         auto connected_vertex =
+  //             std::find_if(connected_vertices_struct_vec.begin(),
+  //                          connected_vertices_struct_vec.end(),
+  //                          boost::bind(&connected_vertices_struct::id, _1) ==
+  //                              connected_edge.start_vertex);
+  //         // if the vertex subgraph id is not equal to the current subgraph
+  //         id,
+  //         // then its a connecting edge between subgraphs
+  //         if (connected_vertex != connected_vertices_struct_vec.end() &&
+  //             (*connected_vertex).subgraph_id != i) {
+  //           // add the edge between subgraphs here
+  //           neigbouring_subgraph_id = (*connected_vertex).subgraph_id;
+  //           geometry_msgs::Point point_msg;
+  //           tf::pointEigenToMsg(connected_edge.start_point.cast<double>(),
+  //                               point_msg);
+  //           subgraph_edge_marker.points.push_back(point_msg);
+  //           tf::pointEigenToMsg(connected_edge.end_point.cast<double>(),
+  //                               point_msg);
+  //           subgraph_edge_marker.points.push_back(point_msg);
+  //         }
+  //       } else if (connected_edge.end_vertex !=
+  //                  connected_vertex_vec[i][j].vertex_id) {
+  //         auto connected_vertex =
+  //             std::find_if(connected_vertices_struct_vec.begin(),
+  //                          connected_vertices_struct_vec.end(),
+  //                          boost::bind(&connected_vertices_struct::id, _1) ==
+  //                              connected_edge.end_vertex);
+  //         if (connected_vertex != connected_vertices_struct_vec.end() &&
+  //             (*connected_vertex).subgraph_id != i) {
+  //           // add the edge between subgraphs here
+  //           neigbouring_subgraph_id = (*connected_vertex).subgraph_id;
+  //           geometry_msgs::Point point_msg;
+  //           tf::pointEigenToMsg(connected_edge.start_point.cast<double>(),
+  //                               point_msg);
+  //           subgraph_edge_marker.points.push_back(point_msg);
+  //           tf::pointEigenToMsg(connected_edge.end_point.cast<double>(),
+  //                               point_msg);
+  //           subgraph_edge_marker.points.push_back(point_msg);
+  //         }
+  //       }
+  //       if (neigbouring_subgraph_id != -1) {
+  //         subgraph_edge_marker.ns = "subgraph_edges_" + std::to_string(i) +
+  //                                   "_" +
+  //                                   std::to_string(neigbouring_subgraph_id);
+  //         int id1 = i;
+  //         int id2 = neigbouring_subgraph_id;
+  //         int combined_ids = id1 << 8 | id2;
+  //         subgraph_edge_marker.id = combined_ids;
+  //         marker_array->markers.push_back(subgraph_edge_marker);
+  //       }
+  //     }
+  //   }
+  // }
 }
 
 }  // namespace voxblox
