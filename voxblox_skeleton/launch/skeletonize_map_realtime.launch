@@ -9,9 +9,10 @@
   <arg name="sparse_graph_path" default="$(arg base_path)/$(arg sparse_graph_name)" />
   <arg name="frame_id" default="map" />
 
-  <node name="voxblox_skeletonizer" pkg="voxblox_skeleton" type="skeletonizer_realtime" output="log" clear_params="true" args="-v=0">
+  <node name="voxblox_skeletonizer" pkg="voxblox_skeleton" type="skeletonizer_realtime" output="screen" clear_params="true" respawn="true" args="-v=1">
     <remap from="pointcloud" to="/hdl_prefilter/filtered_point_cloud"/>
     <param name="color_mode" value="lambert" />
+    <param name="max_block_distance_from_body" value="10.0" />
     <param name="input_filepath" value="$(arg voxblox_path)" />
     <param name="output_filepath" value="$(arg output_path)" />
     <param name="sparse_graph_filepath" value="$(arg sparse_graph_path)" />
