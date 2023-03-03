@@ -49,8 +49,6 @@ class SkeletonizerNode {
 
   EsdfServer esdf_server_;
 
-  SkeletonGenerator skeleton_generator_;
-
   // ros params
   FloatingPoint min_separation_angle_;
   bool generate_by_layer_neighbors_;
@@ -63,35 +61,6 @@ class SkeletonizerNode {
 };
 
 void SkeletonizerNode::init() {
-  // Load a file from the params.
-  nh_private_.param("input_filepath", input_filepath_, input_filepath_);
-  nh_private_.param("output_filepath", output_filepath_, output_filepath_);
-  nh_private_.param("sparse_graph_filepath", sparse_graph_filepath_,
-                    sparse_graph_filepath_);
-  nh_private_.param("frame_id", frame_id_, frame_id_);
-  update_esdf_ = false;
-  nh_private_.param("update_esdf", update_esdf_, update_esdf_);
-
-  min_separation_angle_ = skeleton_generator_.getMinSeparationAngle();
-  nh_private_.param("min_separation_angle", min_separation_angle_,
-                    min_separation_angle_);
-  skeleton_generator_.setMinSeparationAngle(min_separation_angle_);
-
-  generate_by_layer_neighbors_ =
-      skeleton_generator_.getGenerateByLayerNeighbors();
-  nh_private_.param("generate_by_layer_neighbors", generate_by_layer_neighbors_,
-                    generate_by_layer_neighbors_);
-  skeleton_generator_.setGenerateByLayerNeighbors(generate_by_layer_neighbors_);
-
-  num_neighbors_for_edge_ = skeleton_generator_.getNumNeighborsForEdge();
-  nh_private_.param("num_neighbors_for_edge", num_neighbors_for_edge_,
-                    num_neighbors_for_edge_);
-  skeleton_generator_.setNumNeighborsForEdge(num_neighbors_for_edge_);
-
-  min_gvd_distance_ = skeleton_generator_.getMinGvdDistance();
-  nh_private_.param("min_gvd_distance", min_gvd_distance_, min_gvd_distance_);
-  skeleton_generator_.setMinGvdDistance(min_gvd_distance_);
-
   skeleton_generator_timer_ = nh_.createTimer(
       ros::Duration(5.0), &SkeletonizerNode::generateSkeleton, this);
 }
@@ -113,18 +82,48 @@ void SkeletonizerNode::generateSkeleton(const ros::TimerEvent& event) {
 void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
                                    voxblox::Pointcloud* pointcloud,
                                    std::vector<float>* distances) {
-  skeleton_generator_.setEsdfLayer(esdf_layer);
-  skeleton_generator_.generateSkeleton();
-  skeleton_generator_.getSkeleton().getEdgePointcloudWithDistances(pointcloud,
-                                                                   distances);
+  SkeletonGenerator skeleton_generator;
+  // Load a file from the params.
+  nh_private_.param("input_filepath", input_filepath_, input_filepath_);
+  nh_private_.param("output_filepath", output_filepath_, output_filepath_);
+  nh_private_.param("sparse_graph_filepath", sparse_graph_filepath_,
+                    sparse_graph_filepath_);
+  nh_private_.param("frame_id", frame_id_, frame_id_);
+  update_esdf_ = false;
+  nh_private_.param("update_esdf", update_esdf_, update_esdf_);
+
+  min_separation_angle_ = skeleton_generator.getMinSeparationAngle();
+  nh_private_.param("min_separation_angle", min_separation_angle_,
+                    min_separation_angle_);
+  skeleton_generator.setMinSeparationAngle(min_separation_angle_);
+
+  generate_by_layer_neighbors_ =
+      skeleton_generator.getGenerateByLayerNeighbors();
+  nh_private_.param("generate_by_layer_neighbors", generate_by_layer_neighbors_,
+                    generate_by_layer_neighbors_);
+  skeleton_generator.setGenerateByLayerNeighbors(generate_by_layer_neighbors_);
+
+  num_neighbors_for_edge_ = skeleton_generator.getNumNeighborsForEdge();
+  nh_private_.param("num_neighbors_for_edge", num_neighbors_for_edge_,
+                    num_neighbors_for_edge_);
+  skeleton_generator.setNumNeighborsForEdge(num_neighbors_for_edge_);
+
+  min_gvd_distance_ = skeleton_generator.getMinGvdDistance();
+  nh_private_.param("min_gvd_distance", min_gvd_distance_, min_gvd_distance_);
+  skeleton_generator.setMinGvdDistance(min_gvd_distance_);
+
+  skeleton_generator.setEsdfLayer(esdf_layer);
+  skeleton_generator.generateSkeleton();
+  skeleton_generator.getSkeleton().getEdgePointcloudWithDistances(pointcloud,
+                                                                  distances);
   ROS_INFO("Finished generating skeleton.");
 
-  skeleton_generator_.generateSparseGraph();
+  skeleton_generator.generateSparseGraph();
   ROS_INFO("Finished generating sparse graph.");
   ROS_INFO_STREAM("Total Timings: " << std::endl << timing::Timing::Print());
 
   // Now visualize the graph.
-  const SparseSkeletonGraph& graph = skeleton_generator_.getSparseGraph();
+  const SparseSkeletonGraph& graph = skeleton_generator.getSparseGraph();
   visualization_msgs::MarkerArray marker_array;
   visualizeSkeletonGraph(graph, "map_elevated", &marker_array);
   sparse_graph_pub_.publish(marker_array);
