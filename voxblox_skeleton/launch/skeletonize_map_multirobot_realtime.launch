@@ -40,8 +40,7 @@
     <param name="frame_id" value="$(arg final_frame_id)" />
     <param name="verbose" value="false" />
   </node>
-
-  <node pkg="tf" type="static_transform_publisher" name="map_to_map_elevated" args="0 0 0.0 0 0 0 $(arg frame_id) map_elevated 100" />
+  <node pkg="tf" type="static_transform_publisher" name="map_to_map_elevated" args="0 0 0.0 0 0 0 $(arg final_frame_id) map_elevated 100" />
 </group>
 
 </launch>
