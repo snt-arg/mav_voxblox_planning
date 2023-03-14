@@ -34,6 +34,11 @@
     <param name="world_frame" value="$(arg frame_id)" />
     <param name="frame_id" value="$(arg frame_id)" />
     <param name="verbose" value="false" />
+    
+    <!-- Publish ESDF/TSDF maps for the planner -->
+    <param name="publish_esdf_map" value="true" />
+    <param name="publish_tsdf_map" value="true" />
+    <param name="publish_map_every_n_sec" value="1.0" />
   </node>
 
   <node pkg="tf" type="static_transform_publisher" name="map_to_map_elevated" args="0 0 0.0 0 0 0 map map_elevated 100" />
