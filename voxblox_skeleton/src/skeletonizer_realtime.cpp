@@ -15,30 +15,32 @@
 namespace voxblox {
 
 class SkeletonizerNode {
- public:
-  SkeletonizerNode(const ros::NodeHandle& nh, const ros::NodeHandle& nh_private)
-      : nh_(nh),
-        nh_private_(nh_private),
-        frame_id_("map"),
+public:
+  SkeletonizerNode(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private)
+      : nh_(nh), nh_private_(nh_private), frame_id_("map"),
         esdf_server_(nh_, nh_private_) {
-    skeleton_pub_ = nh_private_.advertise<pcl::PointCloud<pcl::PointXYZ> >(
+    skeleton_pub_ = nh_private_.advertise<pcl::PointCloud<pcl::PointXYZ>>(
         "skeleton", 1, true);
-    sparse_graph_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>(
-        "sparse_graph", 1, true);
+    sparse_graph_vis_pub_ =
+        nh_private_.advertise<visualization_msgs::MarkerArray>("sparse_graph",
+                                                               1, true);
+    sparse_graph_pub_ =
+        nh_private_.advertise<voxblox_planning_msgs::SkeletonGraph>(
+            "sparse_graph_out", 1, true);
   }
 
   // Initialize the node.
   void init();
   // Update ESDF
-  void updateEsdf(const ros::TimerEvent& event);
+  void updateEsdf(const ros::TimerEvent &event);
   // Start skeleton generation
-  void generateSkeleton(const ros::TimerEvent& event);
+  void generateSkeleton(const ros::TimerEvent &event);
 
   // Make a skeletor!!!
-  void skeletonize(Layer<EsdfVoxel>* esdf_layer, voxblox::Pointcloud* skeleton,
-                   std::vector<float>* distances);
+  void skeletonize(Layer<EsdfVoxel> *esdf_layer, voxblox::Pointcloud *skeleton,
+                   std::vector<float> *distances);
 
- private:
+private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
 
@@ -46,6 +48,7 @@ class SkeletonizerNode {
 
   ros::Publisher skeleton_pub_;
   ros::Publisher sparse_graph_pub_;
+  ros::Publisher sparse_graph_vis_pub_;
 
   EsdfServer esdf_server_;
 
@@ -65,7 +68,7 @@ void SkeletonizerNode::init() {
       ros::Duration(5.0), &SkeletonizerNode::generateSkeleton, this);
 }
 
-void SkeletonizerNode::generateSkeleton(const ros::TimerEvent& event) {
+void SkeletonizerNode::generateSkeleton(const ros::TimerEvent &event) {
   // Skeletonize????
   voxblox::Pointcloud pointcloud;
   std::vector<float> distances;
@@ -79,9 +82,9 @@ void SkeletonizerNode::generateSkeleton(const ros::TimerEvent& event) {
   skeleton_pub_.publish(ptcloud_pcl);
 }
 
-void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
-                                   voxblox::Pointcloud* pointcloud,
-                                   std::vector<float>* distances) {
+void SkeletonizerNode::skeletonize(Layer<EsdfVoxel> *esdf_layer,
+                                   voxblox::Pointcloud *pointcloud,
+                                   std::vector<float> *distances) {
   SkeletonGenerator skeleton_generator;
   // Load a file from the params.
   nh_private_.param("input_filepath", input_filepath_, input_filepath_);
@@ -123,15 +126,16 @@ void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
   ROS_INFO_STREAM("Total Timings: " << std::endl << timing::Timing::Print());
 
   // Now visualize the graph.
-  const SparseSkeletonGraph& graph = skeleton_generator.getSparseGraph();
+  const SparseSkeletonGraph &graph = skeleton_generator.getSparseGraph();
   visualization_msgs::MarkerArray marker_array;
   visualizeSkeletonGraph(graph, "map_elevated", &marker_array);
-  sparse_graph_pub_.publish(marker_array);
+  sparse_graph_vis_pub_.publish(marker_array);
+  sparse_graph_pub_.publish(skeleton_generator.getSparseGraph().toGraphMsg());
 }
 
-}  // namespace voxblox
+} // namespace voxblox
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   ros::init(argc, argv, "voxblox_skeletonizer");
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, false);

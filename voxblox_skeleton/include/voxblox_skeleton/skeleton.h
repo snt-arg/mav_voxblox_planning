@@ -4,6 +4,7 @@
 #include <map>
 
 #include <voxblox/core/common.h>
+#include <voxblox_planning_msgs/SkeletonGraph.h>
 
 #include "voxblox_skeleton/skeleton_voxel.h"
 
@@ -19,35 +20,35 @@ struct SkeletonPoint {
 };
 
 class Skeleton {
- public:
+public:
   Skeleton();
 
   // Access to all the skeleton points.
-  const AlignedVector<SkeletonPoint>& getSkeletonPoints() const {
+  const AlignedVector<SkeletonPoint> &getSkeletonPoints() const {
     return points_;
   }
-  const AlignedList<SkeletonPoint>& getEdgePoints() const { return edges_; }
-  const AlignedVector<SkeletonPoint>& getVertexPoints() const {
+  const AlignedList<SkeletonPoint> &getEdgePoints() const { return edges_; }
+  const AlignedVector<SkeletonPoint> &getVertexPoints() const {
     return vertices_;
   }
 
-  AlignedVector<SkeletonPoint>& getSkeletonPoints() { return points_; }
-  AlignedList<SkeletonPoint>& getEdgePoints() { return edges_; }
-  AlignedVector<SkeletonPoint>& getVertexPoints() { return vertices_; }
+  AlignedVector<SkeletonPoint> &getSkeletonPoints() { return points_; }
+  AlignedList<SkeletonPoint> &getEdgePoints() { return edges_; }
+  AlignedVector<SkeletonPoint> &getVertexPoints() { return vertices_; }
 
   // Converts the points to a pointcloud with no other information, for all
   // points on the GVD.
-  void getPointcloud(Pointcloud* pointcloud) const;
+  void getPointcloud(Pointcloud *pointcloud) const;
 
   // Also get a vector for the distance information.
-  void getPointcloudWithDistances(Pointcloud* pointcloud,
-                                  std::vector<float>* distances) const;
-  void getEdgePointcloudWithDistances(Pointcloud* pointcloud,
-                                      std::vector<float>* distances) const;
-  void getVertexPointcloudWithDistances(Pointcloud* pointcloud,
-                                        std::vector<float>* distances) const;
+  void getPointcloudWithDistances(Pointcloud *pointcloud,
+                                  std::vector<float> *distances) const;
+  void getEdgePointcloudWithDistances(Pointcloud *pointcloud,
+                                      std::vector<float> *distances) const;
+  void getVertexPointcloudWithDistances(Pointcloud *pointcloud,
+                                        std::vector<float> *distances) const;
 
- private:
+private:
   AlignedVector<SkeletonPoint> points_;
 
   // Subsets of points (just copies because we don't care)
@@ -80,14 +81,14 @@ struct SkeletonEdge {
 };
 
 class SparseSkeletonGraph {
- public:
+public:
   SparseSkeletonGraph();
 
-  int64_t addVertex(const SkeletonVertex& vertex);
+  int64_t addVertex(const SkeletonVertex &vertex);
   // Add Edge does all the heavy lifting: connects the vertices using their
   // internal edge lists, and updates the start and end points within the
   // edge.
-  int64_t addEdge(const SkeletonEdge& edge);
+  int64_t addEdge(const SkeletonEdge &edge);
 
   // Removal operations... Takes care of breaking all previous connections.
   void removeVertex(int64_t vertex_id);
@@ -96,15 +97,15 @@ class SparseSkeletonGraph {
   bool hasVertex(int64_t id) const;
   bool hasEdge(int64_t id) const;
 
-  const SkeletonVertex& getVertex(int64_t id) const;
-  const SkeletonEdge& getEdge(int64_t id) const;
+  const SkeletonVertex &getVertex(int64_t id) const;
+  const SkeletonEdge &getEdge(int64_t id) const;
 
-  SkeletonVertex& getVertex(int64_t id);
-  SkeletonEdge& getEdge(int64_t id);
+  SkeletonVertex &getVertex(int64_t id);
+  SkeletonEdge &getEdge(int64_t id);
 
   // Accessors to just get all the vertex and edge IDs.
-  void getAllVertexIds(std::vector<int64_t>* vertex_ids) const;
-  void getAllEdgeIds(std::vector<int64_t>* edge_ids) const;
+  void getAllVertexIds(std::vector<int64_t> *vertex_ids) const;
+  void getAllEdgeIds(std::vector<int64_t> *edge_ids) const;
 
   void clear();
 
@@ -116,20 +117,24 @@ class SparseSkeletonGraph {
   // Only const access to the vertex and edge maps, mostly for kD-tree use.
   // To modify the stuff, use add and remove vertex/edge, since this preserves
   // the consistency of the graph.
-  const std::map<int64_t, SkeletonVertex>& getVertexMap() const {
+  const std::map<int64_t, SkeletonVertex> &getVertexMap() const {
     return vertex_map_;
   }
-  const std::map<int64_t, SkeletonEdge>& getEdgeMap() const {
+  const std::map<int64_t, SkeletonEdge> &getEdgeMap() const {
     return edge_map_;
   }
 
   // These are the barebones version: does not enforce any connections, used
   // only for de-serializing sparse skeleton graphs. Also sets ids to the ids
   // already in the structure.
-  void addSerializedVertex(const SkeletonVertex& vertex);
-  void addSerializedEdge(const SkeletonEdge& edge);
+  void addSerializedVertex(const SkeletonVertex &vertex);
+  void addSerializedEdge(const SkeletonEdge &edge);
 
- private:
+  // ros integration
+  voxblox_planning_msgs::SkeletonGraph toGraphMsg();
+  void fromGraphMsg(const voxblox_planning_msgs::SkeletonGraphConstPtr &graph);
+
+private:
   // Vertex and edge IDs are separate.
   std::map<int64_t, SkeletonVertex> vertex_map_;
   std::map<int64_t, SkeletonEdge> edge_map_;
@@ -138,6 +143,6 @@ class SparseSkeletonGraph {
   int64_t next_edge_id_;
 };
 
-}  // namespace voxblox
+} // namespace voxblox
 
-#endif  // VOXBLOX_SKELETON_SKELETON_H_
+#endif // VOXBLOX_SKELETON_SKELETON_H_
