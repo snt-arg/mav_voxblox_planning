@@ -17,6 +17,7 @@ public:
   void publishVisuals() const;
 
   const SkeletonGenerator &getSkeletonGenerator() const;
+  const EsdfServer &getEsdfServer() const;
 
 private:
   ros::NodeHandle nh_;
@@ -46,7 +47,7 @@ private:
   std::string sparse_graph_filepath_;
 
   // voxblox server
-  voxblox::EsdfServer esdf_server_;
+  EsdfServer esdf_server_;
 
   // generator
   SkeletonGenerator skeleton_generator_;

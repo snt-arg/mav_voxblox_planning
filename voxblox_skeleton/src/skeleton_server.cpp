@@ -115,6 +115,8 @@ const SkeletonGenerator &SkeletonServer::getSkeletonGenerator() const {
   return skeleton_generator_;
 }
 
+const EsdfServer &SkeletonServer::getEsdfServer() const { return esdf_server_; }
+
 void SkeletonServer::publishData() const {
 
   sparse_graph_pub_.publish(skeleton_generator_.getSparseGraph().toGraphMsg());
