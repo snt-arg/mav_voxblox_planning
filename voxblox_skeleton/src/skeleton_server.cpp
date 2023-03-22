@@ -58,13 +58,19 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
       nh_private_.subscribe<voxblox_planning_msgs::SkeletonGraph>(
           "skeleton_sparse_graph_in", 1,
           [&](const voxblox_planning_msgs::SkeletonGraph::ConstPtr &msg) {
-            ROS_INFO_ONCE("Received sparse graph");
+            ROS_INFO_ONCE("Got a sparse graph from ROS topic!");
             skeleton_generator_.getSparseGraph().setFromGraphMsg(msg);
           });
 
   skeleton_layer_sub_ = nh_private_.subscribe<voxblox_msgs::Layer>(
       "skeleton_layer_in", 1, [&](const voxblox_msgs::Layer::ConstPtr &msg) {
-        ROS_INFO_ONCE("Received skeleton layer");
+        ROS_INFO_ONCE("Got a skeleton layer from ROS topic!");
+
+        if (!skeleton_generator_.getSkeletonLayer()) {
+          // wait for esdf layer, which will create the skeleton layer
+          // with the correct voxel size
+          return;
+        }
 
         // note: we could also just update the map here
         deserializeMsgToLayer(*msg, MapDerializationAction::kReset,
