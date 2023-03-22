@@ -214,7 +214,7 @@ void SparseSkeletonGraph::addSerializedEdge(const SkeletonEdge &edge) {
   edge_map_[edge.edge_id] = edge;
 }
 
-voxblox_planning_msgs::SkeletonGraph SparseSkeletonGraph::toGraphMsg() {
+voxblox_planning_msgs::SkeletonGraph SparseSkeletonGraph::toGraphMsg() const {
   voxblox_planning_msgs::SkeletonGraph graph_msg;
   graph_msg.edges.reserve(edge_map_.size());
   graph_msg.vertices.reserve(vertex_map_.size());
@@ -256,7 +256,7 @@ voxblox_planning_msgs::SkeletonGraph SparseSkeletonGraph::toGraphMsg() {
   return graph_msg;
 }
 
-void SparseSkeletonGraph::fromGraphMsg(
+void SparseSkeletonGraph::setFromGraphMsg(
     const voxblox_planning_msgs::SkeletonGraphConstPtr &graph_msg) {
 
   // start with a clean graph

@@ -1,9 +1,9 @@
 #ifndef VOXBLOX_SKELETON_SKELETON_GENERATOR_H_
 #define VOXBLOX_SKELETON_SKELETON_GENERATOR_H_
 
-#include <glog/logging.h>
 #include <Eigen/Core>
 #include <algorithm>
+#include <glog/logging.h>
 #include <queue>
 #include <utility>
 #include <vector>
@@ -22,13 +22,13 @@ namespace voxblox {
 
 // TODO(helenol): move as an integrator?
 class SkeletonGenerator {
- public:
+public:
   enum CleanupStyle { kNone = 0, kMatchUnderlyingDiagram, kSimplify };
 
   SkeletonGenerator();
-  SkeletonGenerator(Layer<EsdfVoxel>* esdf_layer);
+  SkeletonGenerator(Layer<EsdfVoxel> *esdf_layer);
 
-  void setEsdfLayer(Layer<EsdfVoxel>* esdf_layer);
+  void setEsdfLayer(Layer<EsdfVoxel> *esdf_layer);
 
   // Generate a skeleton diagram (a voxel layer containing skeleton voxels).
   void generateSkeleton();
@@ -45,8 +45,8 @@ class SkeletonGenerator {
   // the layer.
   void updateSkeletonFromLayer();
 
-  bool loadSparseGraphFromFile(const std::string& filename);
-  bool saveSparseGraphToFile(const std::string& filename);
+  bool loadSparseGraphFromFile(const std::string &filename);
+  bool saveSparseGraphToFile(const std::string &filename);
 
   // Pruning function by fitting template neighbors.
   size_t pruneDiagramEdges();
@@ -61,12 +61,12 @@ class SkeletonGenerator {
   void repairGraph();
 
   // Skeleton access.
-  const Skeleton& getSkeleton() const { return skeleton_; }
-  Skeleton& getSkeleton() { return skeleton_; }
+  const Skeleton &getSkeleton() const { return skeleton_; }
+  Skeleton &getSkeleton() { return skeleton_; }
 
   // Sparse graph access.
-  const SparseSkeletonGraph& getSparseGraph() const { return graph_; }
-  SparseSkeletonGraph& getSparseGraph() { return graph_; }
+  const SparseSkeletonGraph &getSparseGraph() const { return graph_; }
+  SparseSkeletonGraph &getSparseGraph() { return graph_; }
 
   float getMinSeparationAngle() const { return min_separation_angle_; }
   void setMinSeparationAngle(float min_separation_angle) {
@@ -92,10 +92,12 @@ class SkeletonGenerator {
   }
 
   // Get the skeleton layer.
-  Layer<SkeletonVoxel>* getSkeletonLayer() { return skeleton_layer_.get(); }
+  Layer<SkeletonVoxel> *getSkeletonLayer() const {
+    return skeleton_layer_.get();
+  }
 
   // Set the skeleton layer! Takes ownership.
-  void setSkeletonLayer(Layer<SkeletonVoxel>* skeleton_layer);
+  void setSkeletonLayer(Layer<SkeletonVoxel> *skeleton_layer);
 
   // ====== Helper functions below! =======
 
@@ -108,43 +110,46 @@ class SkeletonGenerator {
 
   // Follow an edge through the layer, aborting when either no more neighbors
   // exist or a vertex is found.
-  bool followEdge(const BlockIndex& start_block_index,
-                  const VoxelIndex& start_voxel_index,
-                  const Eigen::Vector3i& direction_from_vertex,
-                  int64_t* connected_vertex_id, float* min_distance,
-                  float* max_distance);
+  bool followEdge(const BlockIndex &start_block_index,
+                  const VoxelIndex &start_voxel_index,
+                  const Eigen::Vector3i &direction_from_vertex,
+                  int64_t *connected_vertex_id, float *min_distance,
+                  float *max_distance);
 
   size_t mapNeighborIndexToBitsetIndex(size_t neighbor_index) const;
 
   // Determine whether a point is simple or not.
-  bool isSimplePoint(const std::bitset<27>& neighbors) const;
-  void octreeLabeling(int octant, int label, std::vector<int>* cube) const;
+  bool isSimplePoint(const std::bitset<27> &neighbors) const;
+  void octreeLabeling(int octant, int label, std::vector<int> *cube) const;
 
   // Determine whether a point is an endpoint (using our own amazing algorithm).
-  bool isEndPoint(const std::bitset<27>& neighbors) const;
+  bool isEndPoint(const std::bitset<27> &neighbors) const;
 
   // Utility functions for edge stuff.
-  FloatingPoint getMaxEdgeDistanceFromStraightLine(
-      const Point& start, const Point& end,
-      AlignedVector<Point>* coordinate_path, size_t* max_index);
-  FloatingPoint getMaxEdgeDistanceOnPath(
-      const Point& start, const Point& end,
-      const AlignedVector<Point>& coordinate_path, size_t* max_index);
+  FloatingPoint
+  getMaxEdgeDistanceFromStraightLine(const Point &start, const Point &end,
+                                     AlignedVector<Point> *coordinate_path,
+                                     size_t *max_index);
+  FloatingPoint
+  getMaxEdgeDistanceOnPath(const Point &start, const Point &end,
+                           const AlignedVector<Point> &coordinate_path,
+                           size_t *max_index);
 
   int recursivelyLabel(int64_t vertex_id, int subgraph_id);
-  void tryToFindEdgesInCoordinatePath(
-      const AlignedVector<Point>& coordinate_path, int subgraph_id_start,
-      int subgraph_id_end, std::vector<int64_t>* new_edge_ids);
-  void splitSpecificEdges(const std::vector<int64_t>& starting_edge_ids);
+  void
+  tryToFindEdgesInCoordinatePath(const AlignedVector<Point> &coordinate_path,
+                                 int subgraph_id_start, int subgraph_id_end,
+                                 std::vector<int64_t> *new_edge_ids);
+  void splitSpecificEdges(const std::vector<int64_t> &starting_edge_ids);
 
   // Newer simplification functions.
   void simplifyGraph();
   void simplifyVertices();
   void reconnectSubgraphsAlongEsdf();
   void mergeSubgraphs(int subgraph_1, int subgraph_2,
-                      std::map<int, int>* subgraph_map) const;
+                      std::map<int, int> *subgraph_map) const;
 
- private:
+private:
   // KD tree adapters.
   typedef nanoflann::KDTreeSingleIndexAdaptor<
       nanoflann::L2_Simple_Adaptor<FloatingPoint,
@@ -190,7 +195,7 @@ class SkeletonGenerator {
 
   Skeleton skeleton_;
 
-  Layer<EsdfVoxel>* esdf_layer_;
+  Layer<EsdfVoxel> *esdf_layer_;
   // Owned by the generator! Since it's an intermediate by-product of
   // constructing the graph.
   std::unique_ptr<Layer<SkeletonVoxel>> skeleton_layer_;
@@ -203,6 +208,6 @@ class SkeletonGenerator {
   SparseSkeletonGraph graph_;
 };
 
-}  // namespace voxblox
+} // namespace voxblox
 
-#endif  // VOXBLOX_SKELETONS_SKELETON_GENERATOR_H_
+#endif // VOXBLOX_SKELETONS_SKELETON_GENERATOR_H_

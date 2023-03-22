@@ -131,8 +131,9 @@ public:
   void addSerializedEdge(const SkeletonEdge &edge);
 
   // ros integration
-  voxblox_planning_msgs::SkeletonGraph toGraphMsg();
-  void fromGraphMsg(const voxblox_planning_msgs::SkeletonGraphConstPtr &graph);
+  voxblox_planning_msgs::SkeletonGraph toGraphMsg() const;
+  void
+  setFromGraphMsg(const voxblox_planning_msgs::SkeletonGraphConstPtr &graph);
 
 private:
   // Vertex and edge IDs are separate.

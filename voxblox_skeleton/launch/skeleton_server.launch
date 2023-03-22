@@ -1,0 +1,48 @@
+<launch>
+  <arg name="base_path" default="/home/hriday" />
+  <arg name="input_map_name" default="rs_esdf_0.10.voxblox" />
+  <arg name="output_map_name" default="rs_skeleton_0.10.voxblox" />
+  <arg name="sparse_graph_name" default="rs_sparse_graph_0.10.voxblox" />
+
+  <arg name="voxblox_path" default="$(arg base_path)/$(arg input_map_name)" />
+  <arg name="output_path" default="$(arg base_path)/$(arg output_map_name)" />
+  <arg name="sparse_graph_path" default="$(arg base_path)/$(arg sparse_graph_name)" />
+  <arg name="frame_id" default="map" />
+
+  <node name="voxblox_skeleton_server" pkg="voxblox_skeleton" type="skeleton_server_node" output="screen" clear_params="true" respawn="true" args="-v=1">
+    <remap from="pointcloud" to="/hdl_prefilter/filtered_point_cloud"/>
+    <param name="color_mode" value="lambert" />
+    <param name="max_block_distance_from_body" value="100.0" />
+
+    <!-- <param name="input_filepath" value="$(arg voxblox_path)" />-->
+    <!-- <param name="output_filepath" value="$(arg output_path)" />-->
+    <!-- <param name="sparse_graph_filepath" value="$(arg sparse_graph_path)" />-->
+   
+    <!-- voxblox server -->
+    <param name="tsdf_voxel_size" value="0.2" />
+    <param name="esdf_max_distance_m" value="5.0" />
+    <param name="esdf_min_diff_m" value="0.0" />
+    <param name="esdf_add_occupied_crust" value="true" />
+    <param name="publish_pointclouds" value="true" />
+    <param name="world_frame" value="$(arg frame_id)" />
+    <param name="frame_id" value="$(arg frame_id)" />
+    <param name="verbose" value="false" />
+
+    <!-- skeleton server -->
+    <param name="skeleton_publish_data" value="true" />
+    <param name="skeleton_visualize_data" value="true" />
+    <param name="skeleton_generation_interval" value="5.0" />
+    <param name="skeleton_min_separation_angle" value="0.78" />
+    <param name="skeleton_generate_by_layer_neighbors" value="false" />
+    <!--<param name="skeleton_num_neighbors_for_edge" value="18" />-->
+    <param name="skeleton_min_gvd_distance" value="0.5" />
+
+    <!-- Publish ESDF/TSDF maps for the planner -->
+    <param name="publish_esdf_map" value="true" />
+    <param name="publish_tsdf_map" value="true" />
+    <param name="publish_map_every_n_sec" value="1.0" />
+  </node>
+
+  <node pkg="tf" type="static_transform_publisher" name="map_to_map_elevated" args="0 0 0.0 0 0 0 map map_elevated 100" />
+
+</launch>
