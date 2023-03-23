@@ -5,8 +5,8 @@
 namespace mav_planning {
 
 visualization_msgs::Marker createMarkerForPath(
-    mav_msgs::EigenTrajectoryPointVector& path, const std::string& frame_id,
-    const std_msgs::ColorRGBA& color, const std::string& name, double scale) {
+    mav_msgs::EigenTrajectoryPointVector &path, const std::string &frame_id,
+    const std_msgs::ColorRGBA &color, const std::string &name, double scale) {
   visualization_msgs::Marker path_marker;
 
   const int kMaxSamples = 1000;
@@ -28,9 +28,14 @@ visualization_msgs::Marker createMarkerForPath(
   path_marker.scale.y = scale;
   path_marker.scale.z = scale;
 
+  // suppress warning
+  auto q = geometry_msgs::Quaternion();
+  q.w = 1.0;
+  path_marker.pose.orientation = q;
+
   path_marker.points.reserve(path.size() / subsample);
   int i = 0;
-  for (const mav_msgs::EigenTrajectoryPoint& point : path) {
+  for (const mav_msgs::EigenTrajectoryPoint &point : path) {
     i++;
     if (i % subsample != 0) {
       continue;
@@ -51,8 +56,8 @@ visualization_msgs::Marker createMarkerForPath(
 }
 
 visualization_msgs::Marker createMarkerForWaypoints(
-    mav_msgs::EigenTrajectoryPointVector& path, const std::string& frame_id,
-    const std_msgs::ColorRGBA& color, const std::string& name, double scale) {
+    mav_msgs::EigenTrajectoryPointVector &path, const std::string &frame_id,
+    const std_msgs::ColorRGBA &color, const std::string &name, double scale) {
   visualization_msgs::Marker path_marker;
 
   path_marker.header.frame_id = frame_id;
@@ -67,7 +72,7 @@ visualization_msgs::Marker createMarkerForWaypoints(
   path_marker.scale.z = scale;
 
   path_marker.points.reserve(path.size());
-  for (const mav_msgs::EigenTrajectoryPoint& point : path) {
+  for (const mav_msgs::EigenTrajectoryPoint &point : path) {
     geometry_msgs::Point point_msg;
     mav_msgs::pointEigenToMsg(point.position_W, &point_msg);
     path_marker.points.push_back(point_msg);
@@ -76,4 +81,4 @@ visualization_msgs::Marker createMarkerForWaypoints(
   return path_marker;
 }
 
-}  // namespace mav_planning
+} // namespace mav_planning
