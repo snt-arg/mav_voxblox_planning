@@ -39,6 +39,7 @@ private:
 
   // ros params
   std::string frame_id_;
+  std::string world_frame_;
   bool publish_data_ = false;
   bool vis_data_ = false;
   float min_separation_angle_;

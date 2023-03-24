@@ -17,6 +17,7 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
   nh_private_.param("skeleton_sparse_graph_filepath", sparse_graph_filepath_,
                     sparse_graph_filepath_);
   nh_private_.param("frame_id", frame_id_, frame_id_);
+  nh_private_.param("world_frame", world_frame_, world_frame_);
   nh_private_.param("skeleton_generation_interval", generation_interval_,
                     generation_interval_);
 
@@ -47,7 +48,7 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
       nh_private_.advertise<voxblox_msgs::Layer>("skeleton_layer_out", 1, true);
 
   skeleton_pc_vis_pub_ = nh_private_.advertise<pcl::PointCloud<pcl::PointXYZ>>(
-      "skeleton", 1, true);
+      "skeleton_vis", 1, true);
 
   sparse_graph_vis_pub_ =
       nh_private_.advertise<visualization_msgs::MarkerArray>(
@@ -141,16 +142,15 @@ void SkeletonServer::publishVisuals() const {
 
   skeleton_generator_.getSkeleton().getEdgePointcloudWithDistances(&pointcloud,
                                                                    &distances);
-
   pcl::PointCloud<pcl::PointXYZI> ptcloud_pcl;
   pointcloudToPclXYZI(pointcloud, distances, &ptcloud_pcl);
-  ptcloud_pcl.header.frame_id = frame_id_;
+  ptcloud_pcl.header.frame_id = world_frame_;
   skeleton_pc_vis_pub_.publish(ptcloud_pcl);
 
   // sparse graph markers
   const SparseSkeletonGraph &graph = skeleton_generator_.getSparseGraph();
   visualization_msgs::MarkerArray marker_array;
-  visualizeSkeletonGraph(graph, "map", &marker_array);
+  visualizeSkeletonGraph(graph, world_frame_, &marker_array);
   sparse_graph_vis_pub_.publish(marker_array);
 }
 
