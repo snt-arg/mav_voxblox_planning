@@ -398,8 +398,8 @@ void PlanningPanel::odometryCallback(const geometry_msgs::PoseStamped &msg) {
     mav_msgs::EigenTrajectoryPoint point;
     point.position_W = {msg.pose.position.x, msg.pose.position.y,
                         msg.pose.position.z + 0.5};
-    point.orientation_W_B = {msg.pose.orientation.x, msg.pose.orientation.y,
-                             msg.pose.orientation.z, msg.pose.orientation.w};
+    point.orientation_W_B = {msg.pose.orientation.w, msg.pose.orientation.x,
+                             msg.pose.orientation.y, msg.pose.orientation.z};
     pose_widget_map_["start"]->setPose(point);
     interactive_markers_.updateMarkerPose("start", point);
   }
