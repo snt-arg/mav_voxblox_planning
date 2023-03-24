@@ -1,8 +1,9 @@
-#include <stdio.h>
 #include <functional>
+#include <stdio.h>
 #include <thread>
 
 #include <QCheckBox>
+#include <QDebug>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -23,7 +24,7 @@
 
 namespace mav_planning_rviz {
 
-PlanningPanel::PlanningPanel(QWidget* parent)
+PlanningPanel::PlanningPanel(QWidget *parent)
     : rviz::Panel(parent), nh_(ros::NodeHandle()), interactive_markers_(nh_) {
   createLayout();
 }
@@ -36,7 +37,7 @@ void PlanningPanel::onInitialize() {
 
   interactive_markers_.setFrameId(vis_manager_->getFixedFrame().toStdString());
   // Initialize all the markers.
-  for (const auto& kv : pose_widget_map_) {
+  for (const auto &kv : pose_widget_map_) {
     mav_msgs::EigenTrajectoryPoint pose;
     kv.second->getPose(&pose);
     interactive_markers_.enableMarker(kv.first, pose);
@@ -44,7 +45,7 @@ void PlanningPanel::onInitialize() {
 }
 
 void PlanningPanel::createLayout() {
-  QGridLayout* topic_layout = new QGridLayout;
+  QGridLayout *topic_layout = new QGridLayout;
   // Input the namespace.
   topic_layout->addWidget(new QLabel("Namespace:"), 0, 0);
   namespace_editor_ = new QLineEdit;
@@ -57,9 +58,11 @@ void PlanningPanel::createLayout() {
   topic_layout->addWidget(odometry_topic_editor_, 2, 1);
   odometry_checkbox_ = new QCheckBox("Set start to odom");
   topic_layout->addWidget(odometry_checkbox_, 3, 0, 1, 2);
+  auto_replan_checkbox_ = new QCheckBox("Auto replan");
+  topic_layout->addWidget(auto_replan_checkbox_, 4, 0, 1, 2);
 
   // Start and goal poses.
-  QGridLayout* start_goal_layout = new QGridLayout;
+  QGridLayout *start_goal_layout = new QGridLayout;
 
   // Minimums...
   start_goal_layout->setColumnMinimumWidth(0, 50);
@@ -73,8 +76,8 @@ void PlanningPanel::createLayout() {
 
   start_pose_widget_ = new PoseWidget("start");
   goal_pose_widget_ = new PoseWidget("goal");
-  EditButton* start_edit_button = new EditButton("start");
-  EditButton* goal_edit_button = new EditButton("goal");
+  EditButton *start_edit_button = new EditButton("start");
+  EditButton *goal_edit_button = new EditButton("goal");
   registerPoseWidget(start_pose_widget_);
   registerPoseWidget(goal_pose_widget_);
   registerEditButton(start_edit_button);
@@ -88,7 +91,7 @@ void PlanningPanel::createLayout() {
   start_goal_layout->addWidget(goal_edit_button, 1, 2);
 
   // Planner services and publications.
-  QGridLayout* service_layout = new QGridLayout;
+  QGridLayout *service_layout = new QGridLayout;
   planner_service_button_ = new QPushButton("Planner Service");
   publish_path_button_ = new QPushButton("Publish Path");
   waypoint_button_ = new QPushButton("Send Waypoint");
@@ -99,7 +102,7 @@ void PlanningPanel::createLayout() {
   service_layout->addWidget(controller_button_, 1, 1);
 
   // First the names, then the start/goal, then service buttons.
-  QVBoxLayout* layout = new QVBoxLayout;
+  QVBoxLayout *layout = new QVBoxLayout;
   layout->addLayout(topic_layout);
   layout->addLayout(start_goal_layout);
   layout->addLayout(service_layout);
@@ -121,13 +124,26 @@ void PlanningPanel::createLayout() {
           SLOT(publishToController()));
   connect(odometry_checkbox_, SIGNAL(stateChanged(int)), this,
           SLOT(trackOdometryStateChanged(int)));
+  connect(auto_replan_checkbox_, SIGNAL(stateChanged(int)), this,
+          SLOT(trackAutoReplanStateChanged(int)));
+
+  connect(&replan_timer_, &QTimer::timeout, this,
+          [&]() { callPlannerService(); });
 }
 
 void PlanningPanel::trackOdometryStateChanged(int state) {
-  if (state == 0) {
-    track_odometry_ = 0;
+  track_odometry_ = (state != 0);
+}
+
+void PlanningPanel::trackAutoReplanStateChanged(int state) {
+  auto_replan_ = (state != 0);
+
+  if (auto_replan_) {
+    replan_timer_.setInterval(4000);
+    replan_timer_.setSingleShot(false);
+    replan_timer_.start();
   } else {
-    track_odometry_ = 1;
+    replan_timer_.stop();
   }
 }
 
@@ -136,7 +152,7 @@ void PlanningPanel::updateNamespace() {
 }
 
 // Set the topic name we are publishing to.
-void PlanningPanel::setNamespace(const QString& new_namespace) {
+void PlanningPanel::setNamespace(const QString &new_namespace) {
   ROS_DEBUG_STREAM("Setting namespace from: " << namespace_.toStdString()
                                               << " to "
                                               << new_namespace.toStdString());
@@ -151,9 +167,9 @@ void PlanningPanel::setNamespace(const QString& new_namespace) {
           namespace_.toStdString() + "/waypoint", 1, false);
       controller_pub_ = nh_.advertise<geometry_msgs::PoseStamped>(
           namespace_.toStdString() + "/command/pose", 1, false);
-      odometry_sub_ = nh_.subscribe(
-          namespace_.toStdString() + "/" + odometry_topic_.toStdString(), 1,
-          &PlanningPanel::odometryCallback, this);
+      odometry_sub_ = nh_.subscribe(namespace_.toStdString() + "/" +
+                                        odometry_topic_.toStdString(),
+                                    1, &PlanningPanel::odometryCallback, this);
     }
   }
 }
@@ -163,7 +179,7 @@ void PlanningPanel::updatePlannerName() {
 }
 
 // Set the topic name we are publishing to.
-void PlanningPanel::setPlannerName(const QString& new_planner_name) {
+void PlanningPanel::setPlannerName(const QString &new_planner_name) {
   // Only take action if the name has changed.
   if (new_planner_name != planner_name_) {
     planner_name_ = new_planner_name;
@@ -176,7 +192,7 @@ void PlanningPanel::updateOdometryTopic() {
 }
 
 // Set the topic name we are publishing to.
-void PlanningPanel::setOdometryTopic(const QString& new_odometry_topic) {
+void PlanningPanel::setOdometryTopic(const QString &new_odometry_topic) {
   // Only take action if the name has changed.
   if (new_odometry_topic != odometry_topic_) {
     odometry_topic_ = new_odometry_topic;
@@ -184,14 +200,14 @@ void PlanningPanel::setOdometryTopic(const QString& new_odometry_topic) {
 
     std::string error;
     if (ros::names::validate(namespace_.toStdString(), error)) {
-      odometry_sub_ = nh_.subscribe(
-          namespace_.toStdString() + "/" + odometry_topic_.toStdString(), 1,
-          &PlanningPanel::odometryCallback, this);
+      odometry_sub_ = nh_.subscribe(namespace_.toStdString() + "/" +
+                                        odometry_topic_.toStdString(),
+                                    1, &PlanningPanel::odometryCallback, this);
     }
   }
 }
 
-void PlanningPanel::startEditing(const std::string& id) {
+void PlanningPanel::startEditing(const std::string &id) {
   // Make sure nothing else is being edited.
   if (!currently_editing_.empty()) {
     auto search = edit_button_map_.find(currently_editing_);
@@ -213,7 +229,7 @@ void PlanningPanel::startEditing(const std::string& id) {
   interactive_markers_.disableMarker(id);
 }
 
-void PlanningPanel::finishEditing(const std::string& id) {
+void PlanningPanel::finishEditing(const std::string &id) {
   if (currently_editing_ == id) {
     currently_editing_.clear();
     interactive_markers_.disableSetPoseMarker();
@@ -228,20 +244,22 @@ void PlanningPanel::finishEditing(const std::string& id) {
   interactive_markers_.enableMarker(id, pose);
 }
 
-void PlanningPanel::registerPoseWidget(PoseWidget* widget) {
+void PlanningPanel::registerPoseWidget(PoseWidget *widget) {
   pose_widget_map_[widget->id()] = widget;
-  connect(widget, SIGNAL(poseUpdated(const std::string&,
-                                     mav_msgs::EigenTrajectoryPoint&)),
-          this, SLOT(widgetPoseUpdated(const std::string&,
-                                       mav_msgs::EigenTrajectoryPoint&)));
+  connect(widget,
+          SIGNAL(poseUpdated(const std::string &,
+                             mav_msgs::EigenTrajectoryPoint &)),
+          this,
+          SLOT(widgetPoseUpdated(const std::string &,
+                                 mav_msgs::EigenTrajectoryPoint &)));
 }
 
-void PlanningPanel::registerEditButton(EditButton* button) {
+void PlanningPanel::registerEditButton(EditButton *button) {
   edit_button_map_[button->id()] = button;
-  connect(button, SIGNAL(startedEditing(const std::string&)), this,
-          SLOT(startEditing(const std::string&)));
-  connect(button, SIGNAL(finishedEditing(const std::string&)), this,
-          SLOT(finishEditing(const std::string&)));
+  connect(button, SIGNAL(startedEditing(const std::string &)), this,
+          SLOT(startEditing(const std::string &)));
+  connect(button, SIGNAL(finishedEditing(const std::string &)), this,
+          SLOT(finishEditing(const std::string &)));
 }
 
 // Save all configuration data from this panel to the given
@@ -252,10 +270,12 @@ void PlanningPanel::save(rviz::Config config) const {
   config.mapSetValue("namespace", namespace_);
   config.mapSetValue("planner_name", planner_name_);
   config.mapSetValue("odometry_topic", odometry_topic_);
+  config.mapSetValue("start_to_odometry", odometry_checkbox_->isChecked());
+  config.mapSetValue("auto_replan", auto_replan_checkbox_->isChecked());
 }
 
 // Load all configuration data for this panel from the given Config object.
-void PlanningPanel::load(const rviz::Config& config) {
+void PlanningPanel::load(const rviz::Config &config) {
   rviz::Panel::load(config);
   QString topic;
   QString ns;
@@ -270,10 +290,18 @@ void PlanningPanel::load(const rviz::Config& config) {
     odometry_topic_editor_->setText(topic);
     updateOdometryTopic();
   }
+
+  bool checked;
+  if (config.mapGetBool("start_to_odometry", &checked)) {
+    odometry_checkbox_->setChecked(checked);
+  }
+  if (config.mapGetBool("auto_replan", &checked)) {
+    auto_replan_checkbox_->setChecked(checked);
+  }
 }
 
 void PlanningPanel::updateInteractiveMarkerPose(
-    const mav_msgs::EigenTrajectoryPoint& pose) {
+    const mav_msgs::EigenTrajectoryPoint &pose) {
   if (currently_editing_.empty()) {
     return;
   }
@@ -284,8 +312,8 @@ void PlanningPanel::updateInteractiveMarkerPose(
   search->second->setPose(pose);
 }
 
-void PlanningPanel::widgetPoseUpdated(const std::string& id,
-                                      mav_msgs::EigenTrajectoryPoint& pose) {
+void PlanningPanel::widgetPoseUpdated(const std::string &id,
+                                      mav_msgs::EigenTrajectoryPoint &pose) {
   if (currently_editing_ == id) {
     interactive_markers_.setPose(pose);
   }
@@ -300,7 +328,7 @@ void PlanningPanel::callPlannerService() {
   start_pose_widget_->getPose(&start_point);
   goal_pose_widget_->getPose(&goal_point);
 
-  std::thread t([service_name, start_point, goal_point] {
+  std::thread t([=]() {
     mav_planning_msgs::PlannerService req;
     mav_msgs::msgPoseStampedFromEigenTrajectoryPoint(start_point,
                                                      &req.request.start_pose);
@@ -311,8 +339,10 @@ void PlanningPanel::callPlannerService() {
       ROS_DEBUG_STREAM("Service name: " << service_name);
       if (!ros::service::call(service_name, req)) {
         ROS_WARN_STREAM("Couldn't call service: " << service_name);
+      } else {
+        callPublishPath();
       }
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
       ROS_ERROR_STREAM("Service Exception: " << e.what());
     }
   });
@@ -327,7 +357,7 @@ void PlanningPanel::callPublishPath() {
     if (!ros::service::call(service_name, req)) {
       ROS_WARN_STREAM("Couldn't call service: " << service_name);
     }
-  } catch (const std::exception& e) {
+  } catch (const std::exception &e) {
     ROS_ERROR_STREAM("Service Exception: " << e.what());
   }
 }
@@ -362,20 +392,20 @@ void PlanningPanel::publishToController() {
   controller_pub_.publish(pose);
 }
 
-void PlanningPanel::odometryCallback(const nav_msgs::Odometry& msg) {
+void PlanningPanel::odometryCallback(const geometry_msgs::PoseStamped &msg) {
   ROS_INFO_ONCE("Got odometry callback.");
   if (track_odometry_) {
-    mav_msgs::EigenOdometry odometry;
-    mav_msgs::eigenOdometryFromMsg(msg, &odometry);
     mav_msgs::EigenTrajectoryPoint point;
-    point.position_W = odometry.position_W;
-    point.orientation_W_B = odometry.orientation_W_B;
+    point.position_W = {msg.pose.position.x, msg.pose.position.y,
+                        msg.pose.position.z + 0.5};
+    point.orientation_W_B = {msg.pose.orientation.x, msg.pose.orientation.y,
+                             msg.pose.orientation.z, msg.pose.orientation.w};
     pose_widget_map_["start"]->setPose(point);
     interactive_markers_.updateMarkerPose("start", point);
   }
 }
 
-}  // namespace mav_planning_rviz
+} // namespace mav_planning_rviz
 
 // Tell pluginlib about this class.  Every class which should be
 // loadable by pluginlib::ClassLoader must have these two lines
