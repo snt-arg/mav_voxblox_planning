@@ -7,6 +7,8 @@
 
 namespace voxblox {
 
+class SparseSkeletonGraph;
+
 class SkeletonServer {
 public:
   SkeletonServer(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private);
@@ -18,6 +20,8 @@ public:
 
   const SkeletonGenerator &getSkeletonGenerator() const;
   const EsdfServer &getEsdfServer() const;
+
+  const SparseSkeletonGraph &getSparseGraph() const;
 
 private:
   ros::NodeHandle nh_;

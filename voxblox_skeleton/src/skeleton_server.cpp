@@ -72,7 +72,7 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
         ROS_INFO_ONCE("Got a skeleton layer from ROS topic!");
 
         // note: we could also just update the map here
-        deserializeMsgToLayer(*msg, MapDerializationAction::kReset,
+        deserializeMsgToLayer(*msg, MapDerializationAction::kUpdate,
                               skeleton_generator_.getSkeletonLayer());
       });
 
@@ -152,6 +152,10 @@ void SkeletonServer::publishVisuals() const {
   visualization_msgs::MarkerArray marker_array;
   visualizeSkeletonGraph(graph, "map", &marker_array);
   sparse_graph_vis_pub_.publish(marker_array);
+}
+
+const SparseSkeletonGraph &SkeletonServer::getSparseGraph() const {
+  return skeleton_generator_.getSparseGraph();
 }
 
 } // namespace voxblox
