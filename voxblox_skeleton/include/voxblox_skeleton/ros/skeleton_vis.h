@@ -12,7 +12,7 @@
 namespace voxblox {
 
 struct connected_vertices_struct {
- public:
+public:
   int64_t id;
   bool visited;
   SkeletonVertex vertex;
@@ -20,9 +20,9 @@ struct connected_vertices_struct {
 };
 
 inline void connected_components(
-    int64_t subgraph_id, const SparseSkeletonGraph& graph,
-    connected_vertices_struct& connected_vertex,
-    std::vector<connected_vertices_struct>& connected_vertices_struct_vec,
+    int64_t subgraph_id, const SparseSkeletonGraph &graph,
+    connected_vertices_struct &connected_vertex,
+    std::vector<connected_vertices_struct> &connected_vertices_struct_vec,
     std::vector<int64_t> closed_space_edge_ids) {
   std::vector<int64_t> edge_list = connected_vertex.vertex.edge_list;
   // std::cout << "connected_vertex.vertex.vertex_id " <<
@@ -32,7 +32,7 @@ inline void connected_components(
                              closed_space_edge_ids.end(), edge_id);
     // edge exists
     if (it_edge != closed_space_edge_ids.end()) {
-      const SkeletonEdge& connected_edge = graph.getEdge(edge_id);
+      const SkeletonEdge &connected_edge = graph.getEdge(edge_id);
 
       if (connected_edge.start_vertex != connected_vertex.vertex.vertex_id) {
         // this is the vertex neighbour
@@ -73,11 +73,11 @@ inline void connected_components(
   return;
 }
 
-inline void visualizeSkeletonGraph(
-    const SparseSkeletonGraph& graph, const std::string& frame_id,
-    visualization_msgs::MarkerArray* marker_array) {
-  bool visualize_subgraphs = true;
-  bool visualize_freespace = false;
+void visualizeSkeletonGraph(const SparseSkeletonGraph &graph,
+                            const std::string &frame_id,
+                            visualization_msgs::MarkerArray *marker_array,
+                            bool visualize_subgraphs = true,
+                            bool visualize_freespace = false) {
   CHECK_NOTNULL(marker_array);
   // Get a list of all vertices and visualize them as spheres.
   std::vector<int64_t> vertex_ids;
@@ -127,7 +127,7 @@ inline void visualizeSkeletonGraph(
 
   for (int64_t vertex_id : vertex_ids) {
     geometry_msgs::Point point_msg;
-    const SkeletonVertex& vertex = graph.getVertex(vertex_id);
+    const SkeletonVertex &vertex = graph.getVertex(vertex_id);
     tf::pointEigenToMsg(vertex.point.cast<double>(), point_msg);
     vertex_marker.points.push_back(point_msg);
 
@@ -169,8 +169,12 @@ inline void visualizeSkeletonGraph(
       }
     }
   }
-  marker_array->markers.push_back(closed_space_marker);
-  marker_array->markers.push_back(vertex_marker);
+
+  if (!closed_space_marker.points.empty())
+    marker_array->markers.push_back(closed_space_marker);
+
+  if (!vertex_marker.points.empty())
+    marker_array->markers.push_back(vertex_marker);
 
   // Get all edges and visualize as lines.
   std::vector<int64_t> edge_ids;
@@ -194,7 +198,7 @@ inline void visualizeSkeletonGraph(
 
   for (int64_t edge_id : edge_ids) {
     geometry_msgs::Point point_msg;
-    const SkeletonEdge& edge = graph.getEdge(edge_id);
+    const SkeletonEdge &edge = graph.getEdge(edge_id);
     int64_t start_vertex_id = edge.start_vertex;
     int64_t end_vertex_id = edge.end_vertex;
 
@@ -218,10 +222,11 @@ inline void visualizeSkeletonGraph(
     }
     closed_space_edge_ids.push_back(edge_id);
   }
-  marker_array->markers.push_back(edge_marker);
+  if (!edge_marker.points.empty())
+    marker_array->markers.push_back(edge_marker);
 
   int64_t subgraph_id = 0;
-  for (connected_vertices_struct& connected_vertex :
+  for (connected_vertices_struct &connected_vertex :
        connected_vertices_struct_vec) {
     if (connected_vertex.visited == false) {
       connected_vertex.visited = true;
@@ -233,7 +238,7 @@ inline void visualizeSkeletonGraph(
     }
   }
 
-  std::vector<std::vector<SkeletonVertex> > connected_vertex_vec;
+  std::vector<std::vector<SkeletonVertex>> connected_vertex_vec;
   connected_vertex_vec.resize(subgraph_id + 1);
   for (int64_t current_subgraph_id = 0; current_subgraph_id < subgraph_id;
        ++current_subgraph_id) {
@@ -249,11 +254,11 @@ inline void visualizeSkeletonGraph(
   // merge the deleted components to the appropriate subgraphs
   for (int64_t deleted_vertex_id : deleted_vertex_ids) {
     // get the vertex object given its id
-    const SkeletonVertex& deleted_vertex = graph.getVertex(deleted_vertex_id);
+    const SkeletonVertex &deleted_vertex = graph.getVertex(deleted_vertex_id);
     std::vector<int64_t> deleted_vertex_edge_list = deleted_vertex.edge_list;
 
     for (int64_t deleted_vertex_edge_id : deleted_vertex_edge_list) {
-      const SkeletonEdge& connected_edge =
+      const SkeletonEdge &connected_edge =
           graph.getEdge(deleted_vertex_edge_id);
       connected_vertices_struct connected_vertex_struct;
 
@@ -337,7 +342,7 @@ inline void visualizeSkeletonGraph(
 
       for (int64_t edge_id : connected_vertex_vec[i][j].edge_list) {
         geometry_msgs::Point point_msg;
-        const SkeletonEdge& edge = graph.getEdge(edge_id);
+        const SkeletonEdge &edge = graph.getEdge(edge_id);
         int64_t start_vertex_id = edge.start_vertex;
         int64_t end_vertex_id = edge.end_vertex;
         tf::pointEigenToMsg(edge.start_point.cast<double>(), point_msg);
@@ -346,8 +351,12 @@ inline void visualizeSkeletonGraph(
         connected_edge_marker.points.push_back(point_msg);
       }
     }
-    marker_array->markers.push_back(connected_vertex_marker);
-    marker_array->markers.push_back(connected_edge_marker);
+
+    if (!connected_vertex_marker.points.empty())
+      marker_array->markers.push_back(connected_vertex_marker);
+
+    if (!connected_edge_marker.points.empty())
+      marker_array->markers.push_back(connected_edge_marker);
   }
 
   // // find connections between subgraphs to find doors/openings to connect
@@ -426,6 +435,6 @@ inline void visualizeSkeletonGraph(
   // }
 }
 
-}  // namespace voxblox
+} // namespace voxblox
 
-#endif  // VOXBLOX_SKELETON_ROS_SKELETON_VIS_H_
+#endif // VOXBLOX_SKELETON_ROS_SKELETON_VIS_H_
