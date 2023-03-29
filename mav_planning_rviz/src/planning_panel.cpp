@@ -53,12 +53,15 @@ void PlanningPanel::createLayout() {
   topic_layout->addWidget(namespace_editor_, 0, 1);
   topic_layout->addWidget(new QLabel("Planner name:"), 1, 0);
   planner_name_editor_ = new QLineEdit;
+  planner_name_editor_->setPlaceholderText("mav_planning_msgs::Plan");
   topic_layout->addWidget(planner_name_editor_, 1, 1);
   topic_layout->addWidget(new QLabel("Odometry topic:"), 2, 0);
   odometry_topic_editor_ = new QLineEdit;
+  odometry_topic_editor_->setPlaceholderText("geometry_msgs::PoseStamped");
   topic_layout->addWidget(odometry_topic_editor_, 2, 1);
   topic_layout->addWidget(new QLabel("SGraph topic:"), 3, 0);
   sgraph_topic_editor_ = new QLineEdit;
+  sgraph_topic_editor_->setPlaceholderText("graph_manager_msgs::Graph");
   topic_layout->addWidget(sgraph_topic_editor_, 3, 1);
   odometry_checkbox_ = new QCheckBox("Set start to odom");
   topic_layout->addWidget(odometry_checkbox_, 4, 0, 1, 2);
