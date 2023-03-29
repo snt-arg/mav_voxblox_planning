@@ -2,11 +2,11 @@
 #define MAV_PLANNING_RVIZ_POSE_WIDGET_H_
 
 #ifndef Q_MOC_RUN
-#include <mav_msgs/eigen_mav_msgs.h>
 #include <QItemDelegate>
 #include <QLineEdit>
 #include <QStringList>
 #include <QTableWidget>
+#include <mav_msgs/eigen_mav_msgs.h>
 #endif
 
 class QLineEdit;
@@ -15,29 +15,29 @@ namespace mav_planning_rviz {
 // This is a little widget that allows pose input.
 class PoseWidget : public QWidget {
   Q_OBJECT
- public:
-  explicit PoseWidget(const std::string& id, QWidget* parent = 0);
+public:
+  explicit PoseWidget(const std::string &id, QWidget *parent = 0);
 
   std::string id() const { return id_; }
-  void setId(const std::string& id) { id_ = id; }
+  void setId(const std::string &id) { id_ = id; }
 
-  void getPose(mav_msgs::EigenTrajectoryPoint* point) const;
-  void setPose(const mav_msgs::EigenTrajectoryPoint& point);
+  void getPose(mav_msgs::EigenTrajectoryPoint *point) const;
+  void setPose(const mav_msgs::EigenTrajectoryPoint &point);
 
   virtual QSize sizeHint() const { return table_widget_->sizeHint(); }
 
- Q_SIGNALS:
-  void poseUpdated(const std::string& id, mav_msgs::EigenTrajectoryPoint& pose);
+Q_SIGNALS:
+  void poseUpdated(const std::string &id, mav_msgs::EigenTrajectoryPoint &pose);
 
- public Q_SLOTS:
-  void itemChanged(QTableWidgetItem* item);
+public Q_SLOTS:
+  void itemChanged(QTableWidgetItem *item);
 
- protected:
+protected:
   // Set up the layout, only called by the constructor.
   void createTable();
 
   // QT stuff:
-  QTableWidget* table_widget_;
+  QTableWidget *table_widget_;
 
   // QT state:
   QStringList table_headers_;
@@ -48,11 +48,11 @@ class PoseWidget : public QWidget {
 };
 
 class DoubleTableDelegate : public QItemDelegate {
- public:
-  QWidget* createEditor(QWidget* parent, const QStyleOptionViewItem& option,
-                        const QModelIndex& index) const;
+public:
+  QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                        const QModelIndex &index) const;
 };
 
-}  // end namespace mav_planning_rviz
+} // end namespace mav_planning_rviz
 
-#endif  // MAV_PLANNING_RVIZ_POSE_WIDGET_H_
+#endif // MAV_PLANNING_RVIZ_POSE_WIDGET_H_

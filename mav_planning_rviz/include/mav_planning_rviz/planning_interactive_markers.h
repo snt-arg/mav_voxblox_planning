@@ -11,38 +11,38 @@
 namespace mav_planning_rviz {
 
 class PlanningInteractiveMarkers {
- public:
-  typedef std::function<void(const mav_msgs::EigenTrajectoryPoint& pose)>
+public:
+  typedef std::function<void(const mav_msgs::EigenTrajectoryPoint &pose)>
       PoseUpdatedFunctionType;
 
-  PlanningInteractiveMarkers(const ros::NodeHandle& nh);
+  PlanningInteractiveMarkers(const ros::NodeHandle &nh);
   ~PlanningInteractiveMarkers() {}
 
-  void setFrameId(const std::string& frame_id);
+  void setFrameId(const std::string &frame_id);
   // Bind callback for whenever pose updates.
 
-  void setPoseUpdatedCallback(const PoseUpdatedFunctionType& function) {
+  void setPoseUpdatedCallback(const PoseUpdatedFunctionType &function) {
     pose_updated_function_ = function;
   }
 
   void initialize();
 
   // Functions to interface with the set_pose marker:
-  void enableSetPoseMarker(const mav_msgs::EigenTrajectoryPoint& pose);
+  void enableSetPoseMarker(const mav_msgs::EigenTrajectoryPoint &pose);
   void disableSetPoseMarker();
-  void setPose(const mav_msgs::EigenTrajectoryPoint& pose);
+  void setPose(const mav_msgs::EigenTrajectoryPoint &pose);
 
   // Functions to interact with markers from the marker map (no controls):
-  void enableMarker(const std::string& id,
-                    const mav_msgs::EigenTrajectoryPoint& pose);
-  void updateMarkerPose(const std::string& id,
-                        const mav_msgs::EigenTrajectoryPoint& pose);
-  void disableMarker(const std::string& id);
+  void enableMarker(const std::string &id,
+                    const mav_msgs::EigenTrajectoryPoint &pose);
+  void updateMarkerPose(const std::string &id,
+                        const mav_msgs::EigenTrajectoryPoint &pose);
+  void disableMarker(const std::string &id);
 
   void processSetPoseFeedback(
-      const visualization_msgs::InteractiveMarkerFeedbackConstPtr& feedback);
+      const visualization_msgs::InteractiveMarkerFeedbackConstPtr &feedback);
 
- private:
+private:
   // Creates markers without adding them to the marker server.
   void createMarkers();
 
@@ -66,6 +66,6 @@ class PlanningInteractiveMarkers {
   PoseUpdatedFunctionType pose_updated_function_;
 };
 
-}  // end namespace mav_planning_rviz
+} // end namespace mav_planning_rviz
 
-#endif  // MAV_PLANNING_RVIZ_PLANNING_INTERACTIVE_MARKERS_H_
+#endif // MAV_PLANNING_RVIZ_PLANNING_INTERACTIVE_MARKERS_H_

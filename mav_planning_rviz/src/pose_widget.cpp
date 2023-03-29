@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QBoxLayout>
 #include <QDesktopWidget>
 #include <QHeaderView>
 #include <QTableView>
@@ -11,7 +12,7 @@ namespace mav_planning_rviz {
 constexpr double kDegToRad = M_PI / 180.0;
 constexpr double kRadToDeg = 180.0 / M_PI;
 
-PoseWidget::PoseWidget(const std::string& id, QWidget* parent)
+PoseWidget::PoseWidget(const std::string &id, QWidget *parent)
     : QWidget(parent), id_(id) {
   createTable();
 }
@@ -44,18 +45,18 @@ void PoseWidget::createTable() {
                                                 Qt::AlignVCenter);
   }
 
-  connect(table_widget_, SIGNAL(itemChanged(QTableWidgetItem*)), this,
-          SLOT(itemChanged(QTableWidgetItem*)));
+  connect(table_widget_, &QTableWidget::itemChanged, this,
+          &PoseWidget::itemChanged);
 }
 
-void PoseWidget::getPose(mav_msgs::EigenTrajectoryPoint* point) const {
+void PoseWidget::getPose(mav_msgs::EigenTrajectoryPoint *point) const {
   point->position_W.x() = table_widget_->item(0, 0)->text().toDouble();
   point->position_W.y() = table_widget_->item(0, 1)->text().toDouble();
   point->position_W.z() = table_widget_->item(0, 2)->text().toDouble();
   point->setFromYaw(table_widget_->item(0, 3)->text().toDouble() * kDegToRad);
 }
 
-void PoseWidget::setPose(const mav_msgs::EigenTrajectoryPoint& point) {
+void PoseWidget::setPose(const mav_msgs::EigenTrajectoryPoint &point) {
   table_widget_->blockSignals(true);
   table_widget_->item(0, 0)->setText(
       QString::number(point.position_W.x(), 'f', 2));
@@ -68,23 +69,23 @@ void PoseWidget::setPose(const mav_msgs::EigenTrajectoryPoint& point) {
   table_widget_->blockSignals(false);
 }
 
-void PoseWidget::itemChanged(QTableWidgetItem* item) {
+void PoseWidget::itemChanged(QTableWidgetItem *item) {
   mav_msgs::EigenTrajectoryPoint point;
   getPose(&point);
   Q_EMIT poseUpdated(id_, point);
 }
 
-QWidget* DoubleTableDelegate::createEditor(QWidget* parent,
-                                           const QStyleOptionViewItem& option,
-                                           const QModelIndex& index) const {
+QWidget *DoubleTableDelegate::createEditor(QWidget *parent,
+                                           const QStyleOptionViewItem &option,
+                                           const QModelIndex &index) const {
   // From:
   // https://stackoverflow.com/questions/22708623/qtablewidget-only-numbers-permitted
-  QLineEdit* line_edit = new QLineEdit(parent);
+  QLineEdit *line_edit = new QLineEdit(parent);
   // Set validator
-  QDoubleValidator* validator = new QDoubleValidator(line_edit);
+  QDoubleValidator *validator = new QDoubleValidator(line_edit);
   line_edit->setValidator(validator);
   line_edit->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
   return line_edit;
 }
 
-}  // namespace mav_planning_rviz
+} // namespace mav_planning_rviz

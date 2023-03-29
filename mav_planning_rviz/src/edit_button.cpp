@@ -8,7 +8,7 @@
 
 namespace mav_planning_rviz {
 
-EditButton::EditButton(const std::string& id, QWidget* parent)
+EditButton::EditButton(const std::string &id, QWidget *parent)
     : QWidget(parent), id_(id), editing_(false) {
   createButton();
 }
@@ -19,7 +19,7 @@ void EditButton::createButton() {
   // edit_button_->setFlat(true);
   finishEditing();
   // Connect button signal to appropriate slot
-  connect(edit_button_, SIGNAL(released()), this, SLOT(toggle()));
+  connect(edit_button_, &QPushButton::released, this, &EditButton::toggle);
 }
 
 void EditButton::toggle() {
@@ -46,7 +46,6 @@ void EditButton::finishEditing() {
       "background-color: rgb(255, 255, 204); color: rgb(0, 0, 0); outline: "
       "none;");
   Q_EMIT finishedEditing(id_);
-
 }
 
-}  // namespace mav_planning_rviz
+} // namespace mav_planning_rviz
