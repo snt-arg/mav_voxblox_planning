@@ -5,6 +5,7 @@
 #include "mav_planning_rviz/edit_button.h"
 #include "mav_planning_rviz/planning_interactive_markers.h"
 #include "mav_planning_rviz/pose_widget.h"
+#include <graph_manager_msgs/Graph.h>
 #include <nav_msgs/Odometry.h>
 #include <ros/ros.h>
 #include <rviz/panel.h>
@@ -12,6 +13,7 @@
 
 #include <QTimer>
 
+class QComboBox;
 class QLineEdit;
 class QCheckBox;
 namespace mav_planning_rviz {
@@ -46,11 +48,15 @@ public:
   // And when we get robot odometry:
   void odometryCallback(const geometry_msgs::PoseStamped &msg);
 
+  // sgraph structure
+  void sgraphCallback(const graph_manager_msgs::Graph &msg);
+
   // Next come a couple of public Qt slots.
 public Q_SLOTS:
   void updateNamespace();
   void updatePlannerName();
   void updateOdometryTopic();
+  void updateSGraphTopic();
   void startEditing(const std::string &id);
   void finishEditing(const std::string &id);
   void widgetPoseUpdated(const std::string &id,
@@ -68,17 +74,20 @@ protected:
   void setNamespace(const QString &new_namespace);
   void setPlannerName(const QString &new_planner_name);
   void setOdometryTopic(const QString &new_odometry_topic);
+  void setSGraphTopic(const QString &new_sgraph_topic);
 
   // ROS Stuff:
   ros::NodeHandle nh_;
   ros::Publisher waypoint_pub_;
   ros::Publisher controller_pub_;
   ros::Subscriber odometry_sub_;
+  ros::Subscriber s_graph_sub_;
 
   // QT stuff:
   QLineEdit *namespace_editor_;
   QLineEdit *planner_name_editor_;
   QLineEdit *odometry_topic_editor_;
+  QLineEdit *sgraph_topic_editor_;
   QCheckBox *odometry_checkbox_;
   QCheckBox *auto_replan_checkbox_;
   PoseWidget *start_pose_widget_;
@@ -87,6 +96,7 @@ protected:
   QPushButton *publish_path_button_;
   QPushButton *waypoint_button_;
   QPushButton *controller_button_;
+  QComboBox *sgraph_rooms_combobox_;
 
   QTimer replan_timer_;
 
@@ -100,11 +110,15 @@ protected:
   QString namespace_;
   QString planner_name_;
   QString odometry_topic_;
+  QString sgraph_topic_;
   bool track_odometry_ = false;
   bool auto_replan_ = false;
 
   // Other state:
   std::string currently_editing_;
+
+  // sgraph data
+  std::map<QString, graph_manager_msgs::Node> sgraph_rooms_;
 };
 
 } // end namespace mav_planning_rviz

@@ -3,6 +3,7 @@
 #include <thread>
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDebug>
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -56,10 +57,13 @@ void PlanningPanel::createLayout() {
   topic_layout->addWidget(new QLabel("Odometry topic:"), 2, 0);
   odometry_topic_editor_ = new QLineEdit;
   topic_layout->addWidget(odometry_topic_editor_, 2, 1);
+  topic_layout->addWidget(new QLabel("SGraph topic:"), 3, 0);
+  sgraph_topic_editor_ = new QLineEdit;
+  topic_layout->addWidget(sgraph_topic_editor_, 3, 1);
   odometry_checkbox_ = new QCheckBox("Set start to odom");
-  topic_layout->addWidget(odometry_checkbox_, 3, 0, 1, 2);
+  topic_layout->addWidget(odometry_checkbox_, 4, 0, 1, 2);
   auto_replan_checkbox_ = new QCheckBox("Auto replan");
-  topic_layout->addWidget(auto_replan_checkbox_, 4, 0, 1, 2);
+  topic_layout->addWidget(auto_replan_checkbox_, 5, 0, 1, 2);
 
   // Start and goal poses.
   QGridLayout *start_goal_layout = new QGridLayout;
@@ -70,6 +74,7 @@ void PlanningPanel::createLayout() {
   start_goal_layout->setColumnMinimumWidth(2, 80);
   start_goal_layout->setRowMinimumHeight(0, 55);
   start_goal_layout->setRowMinimumHeight(1, 55);
+  start_goal_layout->setRowMinimumHeight(2, 55);
   start_goal_layout->setColumnStretch(0, 1);
   start_goal_layout->setColumnStretch(1, 9);
   start_goal_layout->setColumnStretch(2, 3);
@@ -78,6 +83,7 @@ void PlanningPanel::createLayout() {
   goal_pose_widget_ = new PoseWidget("goal");
   EditButton *start_edit_button = new EditButton("start");
   EditButton *goal_edit_button = new EditButton("goal");
+  sgraph_rooms_combobox_ = new QComboBox();
   registerPoseWidget(start_pose_widget_);
   registerPoseWidget(goal_pose_widget_);
   registerEditButton(start_edit_button);
@@ -89,6 +95,7 @@ void PlanningPanel::createLayout() {
   start_goal_layout->addWidget(new QLabel("Goal:"), 1, 0, Qt::AlignTop);
   start_goal_layout->addWidget(goal_pose_widget_, 1, 1);
   start_goal_layout->addWidget(goal_edit_button, 1, 2);
+  start_goal_layout->addWidget(sgraph_rooms_combobox_, 2, 1);
 
   // Planner services and publications.
   QGridLayout *service_layout = new QGridLayout;
@@ -115,6 +122,8 @@ void PlanningPanel::createLayout() {
           SLOT(updatePlannerName()));
   connect(odometry_topic_editor_, SIGNAL(editingFinished()), this,
           SLOT(updateOdometryTopic()));
+  connect(sgraph_topic_editor_, SIGNAL(editingFinished()), this,
+          SLOT(updateSGraphTopic()));
   connect(planner_service_button_, SIGNAL(released()), this,
           SLOT(callPlannerService()));
   connect(publish_path_button_, SIGNAL(released()), this,
@@ -170,6 +179,9 @@ void PlanningPanel::setNamespace(const QString &new_namespace) {
       odometry_sub_ = nh_.subscribe(namespace_.toStdString() + "/" +
                                         odometry_topic_.toStdString(),
                                     1, &PlanningPanel::odometryCallback, this);
+      s_graph_sub_ = nh_.subscribe(namespace_.toStdString() + "/" +
+                                       sgraph_topic_.toStdString(),
+                                   1, &PlanningPanel::sgraphCallback, this);
     }
   }
 }
@@ -191,6 +203,10 @@ void PlanningPanel::updateOdometryTopic() {
   setOdometryTopic(odometry_topic_editor_->text());
 }
 
+void PlanningPanel::updateSGraphTopic() {
+  setSGraphTopic(sgraph_topic_editor_->text());
+}
+
 // Set the topic name we are publishing to.
 void PlanningPanel::setOdometryTopic(const QString &new_odometry_topic) {
   // Only take action if the name has changed.
@@ -203,6 +219,21 @@ void PlanningPanel::setOdometryTopic(const QString &new_odometry_topic) {
       odometry_sub_ = nh_.subscribe(namespace_.toStdString() + "/" +
                                         odometry_topic_.toStdString(),
                                     1, &PlanningPanel::odometryCallback, this);
+    }
+  }
+}
+
+void PlanningPanel::setSGraphTopic(const QString &new_sgraph_topic) {
+  // Only take action if the name has changed.
+  if (new_sgraph_topic != sgraph_topic_) {
+    sgraph_topic_ = new_sgraph_topic;
+    Q_EMIT configChanged();
+
+    std::string error;
+    if (ros::names::validate(namespace_.toStdString(), error)) {
+      s_graph_sub_ = nh_.subscribe(namespace_.toStdString() + "/" +
+                                       sgraph_topic_.toStdString(),
+                                   1, &PlanningPanel::sgraphCallback, this);
     }
   }
 }
@@ -270,6 +301,7 @@ void PlanningPanel::save(rviz::Config config) const {
   config.mapSetValue("namespace", namespace_);
   config.mapSetValue("planner_name", planner_name_);
   config.mapSetValue("odometry_topic", odometry_topic_);
+  config.mapSetValue("sgraph_topic", sgraph_topic_);
   config.mapSetValue("start_to_odometry", odometry_checkbox_->isChecked());
   config.mapSetValue("auto_replan", auto_replan_checkbox_->isChecked());
 }
@@ -289,6 +321,10 @@ void PlanningPanel::load(const rviz::Config &config) {
   if (config.mapGetString("odometry_topic", &topic)) {
     odometry_topic_editor_->setText(topic);
     updateOdometryTopic();
+  }
+  if (config.mapGetString("sgraph_topic", &topic)) {
+    sgraph_topic_editor_->setText(topic);
+    updateSGraphTopic();
   }
 
   bool checked;
@@ -402,6 +438,29 @@ void PlanningPanel::odometryCallback(const geometry_msgs::PoseStamped &msg) {
                              msg.pose.orientation.y, msg.pose.orientation.z};
     pose_widget_map_["start"]->setPose(point);
     interactive_markers_.updateMarkerPose("start", point);
+  }
+}
+
+void PlanningPanel::sgraphCallback(const graph_manager_msgs::Graph &msg) {
+  auto old_rooms = sgraph_rooms_;
+  sgraph_rooms_.clear();
+
+  // go through the graph structure to find room
+  for (const auto &node : msg.nodes) {
+    if (node.type == "Finite Room") {
+      // TODO: more sensible room names
+      auto room_name = "Room - " + QString::number(node.id);
+      sgraph_rooms_[room_name] = node;
+    }
+  }
+
+  // update combobox if needed
+  if (old_rooms != sgraph_rooms_) {
+    sgraph_rooms_combobox_->clear();
+
+    for (const auto &kv : sgraph_rooms_) {
+      sgraph_rooms_combobox_->addItem(kv.first);
+    }
   }
 }
 
