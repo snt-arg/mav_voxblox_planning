@@ -74,7 +74,6 @@ void PlanningPanel::createLayout() {
   start_goal_layout->setColumnMinimumWidth(2, 80);
   start_goal_layout->setRowMinimumHeight(0, 55);
   start_goal_layout->setRowMinimumHeight(1, 55);
-  start_goal_layout->setRowMinimumHeight(2, 55);
   start_goal_layout->setColumnStretch(0, 1);
   start_goal_layout->setColumnStretch(1, 9);
   start_goal_layout->setColumnStretch(2, 3);
@@ -95,6 +94,7 @@ void PlanningPanel::createLayout() {
   start_goal_layout->addWidget(new QLabel("Goal:"), 1, 0, Qt::AlignTop);
   start_goal_layout->addWidget(goal_pose_widget_, 1, 1);
   start_goal_layout->addWidget(goal_edit_button, 1, 2);
+  start_goal_layout->addWidget(new QLabel("SGraph Room:"), 2, 0);
   start_goal_layout->addWidget(sgraph_rooms_combobox_, 2, 1);
 
   // Planner services and publications.
@@ -138,6 +138,8 @@ void PlanningPanel::createLayout() {
           &PlanningPanel::trackAutoReplanStateChanged);
   connect(&replan_timer_, &QTimer::timeout, this,
           [&]() { callPlannerService(); });
+  connect(sgraph_rooms_combobox_, qOverload<int>(&QComboBox::activated), this,
+          &PlanningPanel::sgraphRoomChanged);
 }
 
 void PlanningPanel::trackOdometryStateChanged(int state) {
@@ -456,10 +458,34 @@ void PlanningPanel::sgraphCallback(const graph_manager_msgs::Graph &msg) {
 
   // update combobox if needed
   if (old_rooms != sgraph_rooms_) {
+    const auto current_selection = sgraph_rooms_combobox_->currentText();
     sgraph_rooms_combobox_->clear();
 
+    sgraph_rooms_combobox_->addItem(""); // empty item
     for (const auto &kv : sgraph_rooms_) {
       sgraph_rooms_combobox_->addItem(kv.first);
+    }
+
+    sgraph_rooms_combobox_->setCurrentText(current_selection);
+  }
+}
+
+void PlanningPanel::sgraphRoomChanged(int index) {
+  auto room_name = sgraph_rooms_combobox_->itemText(index);
+
+  if (!room_name.isEmpty() &&
+      sgraph_rooms_.find(room_name) != sgraph_rooms_.end()) {
+    const auto &room_data = sgraph_rooms_.at(room_name);
+
+    if (room_data.attributes.size() > 0) {
+      // TODO: we just assume one attribute for now
+      mav_msgs::EigenTrajectoryPoint room_center_pose;
+      room_center_pose.position_W.x() = room_data.attributes[0].fl_value[0];
+      room_center_pose.position_W.y() = room_data.attributes[0].fl_value[1];
+      room_center_pose.position_W.z() = room_data.attributes[0].fl_value[2];
+
+      interactive_markers_.updateMarkerPose("goal", room_center_pose);
+      pose_widget_map_["goal"]->setPose(room_center_pose);
     }
   }
 }

@@ -50,6 +50,7 @@ public:
 
   // sgraph structure
   void sgraphCallback(const graph_manager_msgs::Graph &msg);
+  void sgraphRoomChanged(int index);
 
   // Next come a couple of public Qt slots.
 public Q_SLOTS:
