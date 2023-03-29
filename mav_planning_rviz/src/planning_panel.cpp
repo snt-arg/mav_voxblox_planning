@@ -116,26 +116,26 @@ void PlanningPanel::createLayout() {
   setLayout(layout);
 
   // Hook up connections.
-  connect(namespace_editor_, SIGNAL(editingFinished()), this,
-          SLOT(updateNamespace()));
-  connect(planner_name_editor_, SIGNAL(editingFinished()), this,
-          SLOT(updatePlannerName()));
-  connect(odometry_topic_editor_, SIGNAL(editingFinished()), this,
-          SLOT(updateOdometryTopic()));
-  connect(sgraph_topic_editor_, SIGNAL(editingFinished()), this,
-          SLOT(updateSGraphTopic()));
-  connect(planner_service_button_, SIGNAL(released()), this,
-          SLOT(callPlannerService()));
-  connect(publish_path_button_, SIGNAL(released()), this,
-          SLOT(callPublishPath()));
-  connect(waypoint_button_, SIGNAL(released()), this, SLOT(publishWaypoint()));
-  connect(controller_button_, SIGNAL(released()), this,
-          SLOT(publishToController()));
-  connect(odometry_checkbox_, SIGNAL(stateChanged(int)), this,
-          SLOT(trackOdometryStateChanged(int)));
-  connect(auto_replan_checkbox_, SIGNAL(stateChanged(int)), this,
-          SLOT(trackAutoReplanStateChanged(int)));
-
+  connect(namespace_editor_, &QLineEdit::editingFinished, this,
+          &PlanningPanel::updateNamespace);
+  connect(planner_name_editor_, &QLineEdit::editingFinished, this,
+          &PlanningPanel::updatePlannerName);
+  connect(odometry_topic_editor_, &QLineEdit::editingFinished, this,
+          &PlanningPanel::updateOdometryTopic);
+  connect(sgraph_topic_editor_, &QLineEdit::editingFinished, this,
+          &PlanningPanel::updateSGraphTopic);
+  connect(planner_service_button_, &QPushButton::released, this,
+          &PlanningPanel::callPlannerService);
+  connect(publish_path_button_, &QPushButton::released, this,
+          &PlanningPanel::callPublishPath);
+  connect(waypoint_button_, &QPushButton::released, this,
+          &PlanningPanel::publishWaypoint);
+  connect(controller_button_, &QPushButton::released, this,
+          &PlanningPanel::publishToController);
+  connect(odometry_checkbox_, &QCheckBox::stateChanged, this,
+          &PlanningPanel::trackOdometryStateChanged);
+  connect(auto_replan_checkbox_, &QCheckBox::stateChanged, this,
+          &PlanningPanel::trackAutoReplanStateChanged);
   connect(&replan_timer_, &QTimer::timeout, this,
           [&]() { callPlannerService(); });
 }
