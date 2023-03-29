@@ -105,14 +105,14 @@ inline void visualizeSkeletonGraph(
   }
 
   vertex_marker.pose.orientation.w = 1.0;
-  vertex_marker.scale.x = 0.1;
+  vertex_marker.scale.x = 0.05;
   vertex_marker.scale.y = vertex_marker.scale.x;
   vertex_marker.scale.z = vertex_marker.scale.x;
   vertex_marker.color.r = 1.0;
   vertex_marker.color.a = 1.0;
 
   closed_space_marker.pose.orientation.w = 1.0;
-  closed_space_marker.scale.x = 0.1;
+  closed_space_marker.scale.x = 0.05;
   closed_space_marker.scale.y = closed_space_marker.scale.x;
   closed_space_marker.scale.z = closed_space_marker.scale.x;
   closed_space_marker.color.r = 1.0;
@@ -185,7 +185,7 @@ inline void visualizeSkeletonGraph(
   edge_marker.ns = "edges";
   edge_marker.type = visualization_msgs::Marker::LINE_LIST;
   edge_marker.pose.orientation.w = 1.0;
-  edge_marker.scale.x = 0.01;
+  edge_marker.scale.x = 0.005;
 
   edge_marker.scale.y = edge_marker.scale.x;
   edge_marker.scale.z = edge_marker.scale.x;
@@ -307,7 +307,7 @@ inline void visualizeSkeletonGraph(
     connected_vertex_marker.header.frame_id = frame_id;
     connected_vertex_marker.ns = "connected_vertices_" + std::to_string(i);
     connected_vertex_marker.pose.orientation.w = 1.0;
-    connected_vertex_marker.scale.x = 0.1;
+    connected_vertex_marker.scale.x = 0.05;
     connected_vertex_marker.scale.y = connected_vertex_marker.scale.x;
     connected_vertex_marker.scale.z = connected_vertex_marker.scale.x;
     connected_vertex_marker.color.r = 1.0;
@@ -318,7 +318,7 @@ inline void visualizeSkeletonGraph(
     connected_edge_marker.header.frame_id = frame_id;
     connected_edge_marker.ns = "connected_edges_" + std::to_string(i);
     connected_edge_marker.pose.orientation.w = 1.0;
-    connected_edge_marker.scale.x = 0.01;
+    connected_edge_marker.scale.x = 0.005;
     connected_edge_marker.scale.y = connected_vertex_marker.scale.x;
     connected_edge_marker.scale.z = connected_vertex_marker.scale.x;
     connected_edge_marker.color.b = 1.0;
