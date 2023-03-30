@@ -532,7 +532,7 @@ void VoxbloxHlPlanner::findExplorationCandidates()
     marker.scale.x = voxel_size;
     marker.scale.y = voxel_size;
     marker.scale.z = voxel_size;
-    marker.header.frame_id = "map";
+    marker.header.frame_id = frame_id_;
     marker.pose.orientation.w = 1.0;
     marker.id = 0;
 
@@ -552,6 +552,8 @@ void VoxbloxHlPlanner::findExplorationCandidates()
 
 void VoxbloxHlPlanner::findExplorationBoundary()
 {
+    using namespace voxblox;
+
     if (!skeleton_server_.getEsdfServer().getTsdfMapPtr()) {
         return;
     }
@@ -572,7 +574,12 @@ void VoxbloxHlPlanner::findExplorationBoundary()
     const size_t vps = tsdf.voxels_per_side();
     const size_t num_voxels_per_block = vps * vps * vps;
 
-    std::vector<voxblox::VoxelIndex> neighbours = {
+    // create a new voxblox layer with frontier voxels
+    if (!frontier_layer) {
+        frontier_layer = std::make_shared<Layer<OccupancyVoxel>>(voxel_size, vps);
+    }
+
+    const std::array<voxblox::VoxelIndex, 8> neighbours = {
         voxblox::VoxelIndex(1, 0, 0),
         voxblox::VoxelIndex(1, 1, 0),
         voxblox::VoxelIndex(1, -1, 0),
@@ -590,6 +597,7 @@ void VoxbloxHlPlanner::findExplorationBoundary()
             const auto& voxel = block.getVoxelByLinearIndex(linear_index);
             const auto voxel_index = block.computeVoxelIndexFromLinearIndex(linear_index);
             const auto pos = block.computeCoordinatesFromLinearIndex(linear_index);
+            auto global_index = getGlobalVoxelIndexFromBlockAndVoxelIndex(block_index, voxel_index, vps);
 
             if (std::abs(pos.z() - slice_z) < voxel_size / 2) {
                 // if this is an explored voxel in free space
@@ -597,8 +605,8 @@ void VoxbloxHlPlanner::findExplorationBoundary()
                     bool candidate = false;
                     // check the 8 direct neighbours for unexplored territory
                     for (const auto& np : neighbours) {
-                        auto global_index = voxblox::getGlobalVoxelIndexFromBlockAndVoxelIndex(block_index, voxel_index, vps) + np.cast<long int>();
-                        auto nv = tsdf.getVoxelPtrByGlobalIndex(global_index);
+                        auto nb_global_index = global_index + np.cast<long int>();
+                        auto nv = tsdf.getVoxelPtrByGlobalIndex(nb_global_index);
                         if (nv) {
                             if (nv->weight == 0) {
                                 candidate = true;
@@ -611,6 +619,13 @@ void VoxbloxHlPlanner::findExplorationBoundary()
                     }
 
                     if (candidate) {
+                        auto frontier_block = frontier_layer->allocateBlockPtrByIndex(block_index);
+                        auto voxel = frontier_layer->getVoxelPtrByGlobalIndex(global_index);
+                        if (voxel) {
+                            voxel->observed = true;
+                            voxel->probability_log = 0.99;
+                        }
+
                         candidate_points.push_back(pos);
                     }
                 }
@@ -618,30 +633,9 @@ void VoxbloxHlPlanner::findExplorationBoundary()
         }
     }
 
-    // vis
+    // use the default voxblox visualization
     visualization_msgs::MarkerArray markers;
-    visualization_msgs::Marker marker;
-    marker.ns = "explr_candidates";
-    marker.type = visualization_msgs::Marker::CUBE_LIST;
-    marker.color.a = 1.0;
-    marker.color.g = 0.0;
-    marker.scale.x = voxel_size;
-    marker.scale.y = voxel_size;
-    marker.scale.z = voxel_size;
-    marker.header.frame_id = "map";
-    marker.pose.orientation.w = 1.0;
-    marker.id = 0;
-
-    for (auto p : candidate_points) {
-        geometry_msgs::Point point;
-        point.x = p.x();
-        point.y = p.y();
-        point.z = p.z();
-        marker.points.push_back(point);
-    }
-
-    markers.markers.push_back(marker);
-
+    voxblox::createOccupancyBlocksFromOccupancyLayer(*frontier_layer, frame_id_, &markers);
     exploration_candidates_vis_pub_.publish(markers);
 }
 

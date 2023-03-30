@@ -129,6 +129,9 @@ private:
 
     // caching
     mav_msgs::EigenTrajectoryPointVector last_graph_path_;
+
+    // frontier layer
+    std::shared_ptr<voxblox::Layer<voxblox::OccupancyVoxel>> frontier_layer;
 };
 
 } // namespace mav_planning
