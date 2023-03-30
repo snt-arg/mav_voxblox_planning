@@ -13,7 +13,7 @@ add_definitions(-std=c++14)
 cs_add_library(${PROJECT_NAME}
   src/voxblox_ompl_rrt.cpp
   src/voxblox_rrt_planner.cpp
-  src/voxblox_sparse_planner.cpp
+  src/voxblox_hl_planner.cpp
   src/skeleton_graph_planner.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${OMPL_LIBRARIES})
@@ -26,10 +26,10 @@ cs_add_executable(voxblox_rrt_planner_rt_node
 )
 target_link_libraries(voxblox_rrt_planner_rt_node ${PROJECT_NAME})
 
-cs_add_executable(voxblox_sparse_planner_node
-  src/voxblox_sparse_planner_node.cpp
+cs_add_executable(voxblox_hl_planner_node
+  src/voxblox_hl_planner_node.cpp
 )
-target_link_libraries(voxblox_sparse_planner_node ${PROJECT_NAME})
+target_link_libraries(voxblox_hl_planner_node ${PROJECT_NAME})
 
 # #########
 # EXPORT #
