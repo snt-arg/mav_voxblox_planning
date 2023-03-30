@@ -54,7 +54,7 @@ public:
     bool checkPathForCollisions(const mav_msgs::EigenTrajectoryPointVector& path, double* t) const;
     bool checkPhysicalConstraints(const mav_trajectory_generation::Trajectory& trajectory);
 
-    void findExplorationCandidates();
+    void findSparseExplorationCandidates();
     void findExplorationBoundary();
 
 private:
@@ -78,6 +78,7 @@ private:
     ros::Publisher sparse_graph_pub_;
     ros::Publisher trajectory_vis_pub_;
     ros::Publisher exploration_candidates_vis_pub_;
+    ros::Publisher exploration_frontier_vis_pub_;
 
     ros::ServiceServer planner_srv_;
     ros::ServiceServer path_pub_srv_;

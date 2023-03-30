@@ -54,6 +54,7 @@ VoxbloxHlPlanner::VoxbloxHlPlanner(const ros::NodeHandle& nh, const ros::NodeHan
     waypoint_list_2d_pub_ = nh_private_.advertise<geometry_msgs::PoseArray>("waypoint_list_2d", 1);
     waypoint_list_2d_vis_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>("waypoint_list_2d_vis", 1);
     exploration_candidates_vis_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>("exploration_candidates_vis", 1);
+    exploration_frontier_vis_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>("exploration_frontier_layer_vis", 1);
 
     planner_srv_ = nh_private_.advertiseService("plan", &VoxbloxHlPlanner::plannerServiceCallback, this);
     path_pub_srv_ = nh_private_.advertiseService("publish_path", &VoxbloxHlPlanner::publishPathCallback, this);
@@ -85,6 +86,7 @@ VoxbloxHlPlanner::VoxbloxHlPlanner(const ros::NodeHandle& nh, const ros::NodeHan
     explr_timer_ = nh_private.createTimer(ros::Duration(1), [&](const ros::TimerEvent&) {
         // findExplorationCandidates();
         findExplorationBoundary();
+        findSparseExplorationCandidates();
     });
 }
 
@@ -447,18 +449,23 @@ bool VoxbloxHlPlanner::checkPhysicalConstraints(const mav_trajectory_generation:
 
 // \brief
 // find vertices worth exploring by checking which vertices have no allocated blocks nearby
-void VoxbloxHlPlanner::findExplorationCandidates()
+void VoxbloxHlPlanner::findSparseExplorationCandidates()
 {
-    if (!skeleton_server_.getEsdfServer().getTsdfMapPtr()) {
+    if (!frontier_layer) {
         return;
+    }
+
+    float slice_z = 0.5;
+    const auto& tsdf_layer = skeleton_server_.getEsdfServer().getTsdfMapPtr()->getTsdfLayer();
+    const float voxel_size = tsdf_layer.voxel_size();
+
+    if (std::remainder(slice_z, voxel_size) < 1e-4) {
+        slice_z += voxel_size / 2.0;
     }
 
     ROS_INFO("Find explration candidates");
 
-    const auto& esdf = skeleton_server_.getEsdfServer().getEsdfMapPtr()->getEsdfLayer();
-    const auto& tsdf = skeleton_server_.getEsdfServer().getTsdfMapPtr()->getTsdfLayer();
-    const float voxel_size = esdf.voxel_size();
-    const float radius = 1.2;
+    const float radius = 0.8;
 
     std::vector<int64_t> sg_vertices;
     skeleton_server_.getSparseGraph().getAllVertexIds(&sg_vertices);
@@ -469,14 +476,14 @@ void VoxbloxHlPlanner::findExplorationCandidates()
     for (auto index : sg_vertices) {
         const auto& vertex_data = skeleton_server_.getSparseGraph().getVertex(index);
         auto pos = vertex_data.point;
-        pos.z() = 0.5;
+        pos.z() = slice_z;
 
         const int steps = std::ceil(radius / voxel_size);
         const int steps_theta = 16;
 
         bool good_candidate = false;
 
-        const auto this_voxel = tsdf.getVoxelPtrByCoordinates(pos);
+        const auto this_voxel = frontier_layer->getVoxelPtrByCoordinates(pos);
 
         int gc = 0;
 
@@ -488,34 +495,20 @@ void VoxbloxHlPlanner::findExplorationCandidates()
             // line
             for (int i = 1; i < steps; ++i) {
 
-                const auto voxel = tsdf.getVoxelPtrByCoordinates(pos + dir * i * voxel_size);
+                const auto tsdf_voxel = tsdf_layer.getVoxelPtrByCoordinates(pos + dir * i * voxel_size);
+                const auto frontier_voxel = frontier_layer->getVoxelPtrByCoordinates(pos + dir * i * voxel_size);
 
-                if (voxel) {
-                    // ROS_INFO("VOXEL: %f, %f", voxel->distance, voxel->weight);
+                if (!tsdf_voxel || (tsdf_voxel && tsdf_voxel->distance < 0 && tsdf_voxel->weight > 1e-3)) {
+                    break;
                 }
 
-                if (!voxel) {
-                    // good_candidate = true;
-                    // goto outer;
+                if (frontier_voxel && frontier_voxel->probability_log > 0.6 && frontier_voxel->observed) {
                     gc++;
-                    // break;
-                } else {
-
-                    if (voxel->distance < 0 && voxel->weight > 1e-3) {
-                        break; // wall, do not continue in this direction
-                    } else if (voxel->weight == 0.0) {
-                        // no allocated voxel found in this direction
-                        // thus a good candidate to explore
-                        // good_candidate = true;
-                        gc++;
-                        // break;
-                        // goto outer;
-                    }
                 }
             }
         }
-    outer:
-        if (gc > 4) {
+
+        if (gc > 2) {
             sg_candidate_vertices.push_back(index);
         }
     }
@@ -575,9 +568,9 @@ void VoxbloxHlPlanner::findExplorationBoundary()
     const size_t num_voxels_per_block = vps * vps * vps;
 
     // create a new voxblox layer with frontier voxels
-    if (!frontier_layer) {
-        frontier_layer = std::make_shared<Layer<OccupancyVoxel>>(voxel_size, vps);
-    }
+    // if (!frontier_layer) {
+    frontier_layer = std::make_shared<Layer<OccupancyVoxel>>(voxel_size, vps);
+    // }
 
     const std::array<voxblox::VoxelIndex, 8> neighbours = {
         voxblox::VoxelIndex(1, 0, 0),
@@ -636,7 +629,7 @@ void VoxbloxHlPlanner::findExplorationBoundary()
     // use the default voxblox visualization
     visualization_msgs::MarkerArray markers;
     voxblox::createOccupancyBlocksFromOccupancyLayer(*frontier_layer, frame_id_, &markers);
-    exploration_candidates_vis_pub_.publish(markers);
+    exploration_frontier_vis_pub_.publish(markers);
 }
 
 } // namespace mav_planning
