@@ -4,12 +4,8 @@
   <arg name="sparse_graph_path" default="" />
   <arg name="frame_id" default="map" />
 
-  <!-- <node name="pc_throttler" type="throttle" pkg="topic_tools" args="messages /hdl_prefilter/filtered_point_cloud 3 /hdl_prefilter/filtered_point_cloud _throttled" /> -->
   <node name="voxblox_skeleton_server" pkg="voxblox_skeleton" type="skeleton_server_node" output="screen" clear_params="true" respawn="true" args="-v=1">
-    <remap from="pointcloud" to="/hdl_prefilter/filtered_point_cloud"/>
-    
-    
-    <!-- <remap from="pointcloud" to="/hdl_prefilter/filtered_point_cloud_throttled"/> -->
+    <param name="bim_filename" value="/home/paul/spot_ws/src/s_graphs_utils/mav_voxblox_planning/voxblox_skeleton/bims/topfloor_walls_org.json" />
 
     <!-- global map -->
     <!-- doc: https://voxblox.readthedocs.io/en/latest/pages/The-Voxblox-Node.html -->

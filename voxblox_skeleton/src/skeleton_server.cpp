@@ -5,11 +5,23 @@
 #include <voxblox_ros/conversions.h>
 #include <voxblox_ros/ptcloud_vis.h>
 
+#include <boost/lockfree/spsc_queue.hpp>
+
+#include "voxblox_skeleton/bim/bim.h"
+
 namespace voxblox {
+
+boost::lockfree::spsc_queue<std::shared_ptr<SkeletonGenerator>>
+    g_skeleton_generator_queue(1);
+
+boost::lockfree::spsc_queue<std::shared_ptr<Layer<EsdfVoxel>>,
+                            boost::lockfree::capacity<1>>
+    g_esdf_queue;
 
 SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
                                const ros::NodeHandle &nh_private)
-    : nh_(nh), nh_private_(nh_private), esdf_server_(nh, nh_private) {
+    : nh_(nh), nh_private_(nh_private), esdf_server_(nh, nh_private),
+      skeleton_generator_(std::make_shared<SkeletonGenerator>()) {
 
   // params
   nh_private_.param("skeleton_publish_data", publish_data_, publish_data_);
@@ -39,20 +51,24 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
   nh_private_.param("skeleton_min_gvd_distance", min_gvd_distance_,
                     min_gvd_distance_);
 
+  // bim params
+  std::string bim_filename;
+  nh_private_.param("bim_filename", bim_filename, bim_filename);
+
   // publishers
   sparse_graph_pub_ =
       nh_private_.advertise<voxblox_planning_msgs::SkeletonGraph>(
-          "skeleton_sparse_graph_out", 1, true);
+          "skeleton_sparse_graph_out", 1, false);
 
-  skeleton_layer_pub_ =
-      nh_private_.advertise<voxblox_msgs::Layer>("skeleton_layer_out", 1, true);
+  skeleton_layer_pub_ = nh_private_.advertise<voxblox_msgs::Layer>(
+      "skeleton_layer_out", 1, false);
 
   skeleton_pc_vis_pub_ = nh_private_.advertise<pcl::PointCloud<pcl::PointXYZ>>(
-      "skeleton_vis", 1, true);
+      "skeleton_vis", 1, false);
 
   sparse_graph_vis_pub_ =
       nh_private_.advertise<visualization_msgs::MarkerArray>(
-          "skeleton_sparse_graph", 1, true);
+          "skeleton_sparse_graph", 1, false);
 
   // subscribers
   sparse_graph_sub_ =
@@ -60,53 +76,142 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
           "skeleton_sparse_graph_in", 1,
           [&](const voxblox_planning_msgs::SkeletonGraph::ConstPtr &msg) {
             ROS_INFO_ONCE("Got a sparse graph from ROS topic!");
-            skeleton_generator_.getSparseGraph().setFromGraphMsg(msg);
+            skeleton_generator_->getSparseGraph().setFromGraphMsg(msg);
           });
 
   skeleton_layer_sub_ = nh_private_.subscribe<voxblox_msgs::Layer>(
       "skeleton_layer_in", 1, [&](const voxblox_msgs::Layer::ConstPtr &msg) {
         // set esdf layer which also initializes the skeleton layer
-        skeleton_generator_.setEsdfLayer(
+        skeleton_generator_->setEsdfLayer(
             esdf_server_.getEsdfMapPtr()
                 ->getEsdfLayerPtr()); // also initializes the skeleton layer
 
         ROS_INFO_ONCE("Got a skeleton layer from ROS topic!");
 
         // note: we could also just update the map here
-        deserializeMsgToLayer(*msg, MapDerializationAction::kUpdate,
-                              skeleton_generator_.getSkeletonLayer());
+        deserializeMsgToLayer(*msg, skeleton_generator_->getSkeletonLayer());
+        skeleton_generator_->updateSkeletonFromLayer();
       });
+
+  // skeleton generator
+  skeleton_generator_->setEsdfLayer(
+      esdf_server_.getEsdfMapPtr()
+          ->getEsdfLayerPtr()); // also initializes the skeleton layer
+
+  skeleton_generator_->setMinSeparationAngle(min_separation_angle_);
+  skeleton_generator_->setGenerateByLayerNeighbors(
+      generate_by_layer_neighbors_);
+  skeleton_generator_->setNumNeighborsForEdge(num_neighbors_for_edge_);
+  skeleton_generator_->setMinGvdDistance(min_gvd_distance_);
 
   // timers
   if (generation_interval_ > 0.0) {
-    skeleton_generator_timer_ =
-        nh_.createTimer(ros::Duration(generation_interval_),
-                        [&](const ros::TimerEvent &) { generate(); });
+    skeleton_generator_timer_ = nh_.createTimer(
+        ros::Duration(generation_interval_ * 0.5),
+        [&](const ros::TimerEvent &) {
+          bool threaded_generation = true;
+          if (threaded_generation) {
+            if (!generating_skeleton_ && g_skeleton_generator_queue.empty()) {
+              // copy the esdf layer
+              auto esdf_layer = std::make_unique<Layer<EsdfVoxel>>(
+                  esdf_server_.getEsdfMapPtr()->getEsdfLayer());
+
+              ROS_INFO("Launching GVD threaded");
+              generate_threaded(std::move(esdf_layer));
+            } else {
+              std::shared_ptr<SkeletonGenerator> skeleton_generator;
+              if (g_skeleton_generator_queue.pop(skeleton_generator)) {
+                generating_skeleton_ = false;
+                skeleton_generator_ = skeleton_generator;
+              }
+            }
+          } else {
+            generate();
+          }
+        });
   } else {
     ROS_INFO("Skeleton generation disabled");
+  }
+
+  // load bim
+  if (!bim_filename.empty()) {
+    ROS_INFO("Loading bim map '%s'", bim_filename.c_str());
+
+    const auto bim_map = bim::parse_bim(bim_filename);
+    bim::generateTsdfLayer(bim_map,
+                           *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
   }
 }
 
 void SkeletonServer::generate() {
   // start with a fresh skeleton
-  skeleton_generator_ = SkeletonGenerator();
+  ROS_INFO("About to generate skeleton graph");
+  skeleton_generator_ = std::make_unique<SkeletonGenerator>();
 
   // apply user params
-  skeleton_generator_.setMinSeparationAngle(min_separation_angle_);
-  skeleton_generator_.setGenerateByLayerNeighbors(generate_by_layer_neighbors_);
-  skeleton_generator_.setNumNeighborsForEdge(num_neighbors_for_edge_);
-  skeleton_generator_.setMinGvdDistance(min_gvd_distance_);
+  skeleton_generator_->setMinSeparationAngle(min_separation_angle_);
+  skeleton_generator_->setGenerateByLayerNeighbors(
+      generate_by_layer_neighbors_);
+  skeleton_generator_->setNumNeighborsForEdge(num_neighbors_for_edge_);
+  skeleton_generator_->setMinGvdDistance(min_gvd_distance_);
 
   // set esdf layer
-  skeleton_generator_.setEsdfLayer(
-      esdf_server_.getEsdfMapPtr()
-          ->getEsdfLayerPtr()); // also initializes the skeleton layer
+  if (!skeleton_generator_->getSkeletonLayer()) {
+    skeleton_generator_->setEsdfLayer(
+        esdf_server_.getEsdfMapPtr()
+            ->getEsdfLayerPtr()); // also initializes the skeleton layer
+  }
+  // skeleton_generator_.setEsdfLayer(
+  //     esdf_server_.getEsdfMapPtr()
+  //         ->getEsdfLayerPtr()); // also initializes the skeleton layer
 
   // generate skeleton
-  skeleton_generator_.generateSkeleton();
+  skeleton_generator_->generateSkeleton();
 
   // generate sparse graph
-  skeleton_generator_.generateSparseGraph();
+  skeleton_generator_->generateSparseGraph();
+  // skeleton_generator_.reconnectSubgraphsAlongEsdf();
+
+  // pub
+  if (publish_data_) {
+    publishData();
+  }
+  if (vis_data_) {
+    publishVisuals();
+  }
+}
+
+void SkeletonServer::generate_threaded(
+    std::unique_ptr<Layer<EsdfVoxel>> esdf_layer) {
+  auto skeleton_generator = std::make_shared<SkeletonGenerator>();
+
+  // apply user params
+  skeleton_generator->setMinSeparationAngle(min_separation_angle_);
+  skeleton_generator->setGenerateByLayerNeighbors(generate_by_layer_neighbors_);
+  skeleton_generator->setNumNeighborsForEdge(num_neighbors_for_edge_);
+  skeleton_generator->setMinGvdDistance(min_gvd_distance_);
+
+  generating_skeleton_ = true;
+
+  auto thread = std::thread([skeleton_generator = std::move(skeleton_generator),
+                             esdf_layer = std::move(esdf_layer)]() {
+    // start with a fresh skeleton
+    ROS_INFO("About to generate skeleton graph");
+
+    // set esdf layer
+    skeleton_generator->setEsdfLayer(esdf_layer.get());
+
+    // generate skeleton
+    skeleton_generator->generateSkeleton();
+
+    // generate sparse graph
+    skeleton_generator->generateSparseGraph();
+    skeleton_generator->reconnectSubgraphsAlongEsdf();
+
+    // ship it
+    g_skeleton_generator_queue.push(skeleton_generator);
+  });
+  thread.detach();
 
   // pub
   if (publish_data_) {
@@ -118,18 +223,18 @@ void SkeletonServer::generate() {
 }
 
 const SkeletonGenerator &SkeletonServer::getSkeletonGenerator() const {
-  return skeleton_generator_;
+  return *skeleton_generator_;
 }
 
 const EsdfServer &SkeletonServer::getEsdfServer() const { return esdf_server_; }
 
 void SkeletonServer::publishData() const {
 
-  sparse_graph_pub_.publish(skeleton_generator_.getSparseGraph().toGraphMsg());
+  sparse_graph_pub_.publish(skeleton_generator_->getSparseGraph().toGraphMsg());
 
-  if (skeleton_generator_.getSkeletonLayer()) {
+  if (skeleton_generator_->getSkeletonLayer()) {
     voxblox_msgs::Layer layer_msg;
-    serializeLayerAsMsg<SkeletonVoxel>(*skeleton_generator_.getSkeletonLayer(),
+    serializeLayerAsMsg<SkeletonVoxel>(*skeleton_generator_->getSkeletonLayer(),
                                        false, &layer_msg);
     skeleton_layer_pub_.publish(layer_msg);
   }
@@ -140,22 +245,22 @@ void SkeletonServer::publishVisuals() const {
   Pointcloud pointcloud;
   std::vector<float> distances;
 
-  skeleton_generator_.getSkeleton().getEdgePointcloudWithDistances(&pointcloud,
-                                                                   &distances);
+  skeleton_generator_->getSkeleton().getEdgePointcloudWithDistances(&pointcloud,
+                                                                    &distances);
   pcl::PointCloud<pcl::PointXYZI> ptcloud_pcl;
   pointcloudToPclXYZI(pointcloud, distances, &ptcloud_pcl);
   ptcloud_pcl.header.frame_id = world_frame_;
   skeleton_pc_vis_pub_.publish(ptcloud_pcl);
 
   // sparse graph markers
-  const SparseSkeletonGraph &graph = skeleton_generator_.getSparseGraph();
+  const SparseSkeletonGraph &graph = skeleton_generator_->getSparseGraph();
   visualization_msgs::MarkerArray marker_array;
-  visualizeSkeletonGraph(graph, world_frame_, &marker_array);
+  visualizeSkeletonGraph(graph, world_frame_, &marker_array, false, false);
   sparse_graph_vis_pub_.publish(marker_array);
 }
 
 const SparseSkeletonGraph &SkeletonServer::getSparseGraph() const {
-  return skeleton_generator_.getSparseGraph();
+  return skeleton_generator_->getSparseGraph();
 }
 
 } // namespace voxblox

@@ -4,7 +4,17 @@ project(voxblox_skeleton)
 find_package(catkin_simple REQUIRED)
 catkin_simple(ALL_DEPS_REQUIRED)
 
-add_definitions(-std=c++14)
+add_definitions(-std=c++17)
+
+# ###########
+# JSONCPP   #
+# ###########
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONCPP jsoncpp)
+link_libraries(${JSONCPP_LIBRARIES})
+
+# get_target_property(JSON_INC_PATH jsoncpp_lib INTERFACE_INCLUDE_DIRECTORIES)
+# include_directories(${JSON_INC_PATH})
 
 # ###########
 # PROTOBUF #
@@ -44,6 +54,7 @@ target_link_libraries(${PROJECT_NAME}_proto ${PROTOBUF_LIBRARIES})
 
 cs_add_library(${PROJECT_NAME}
   src/io/skeleton_io.cpp
+  src/ros/skeleton_vis.cpp
   src/skeleton.cpp
   src/skeleton_generator.cpp
   src/skeleton_server.cpp
@@ -51,6 +62,9 @@ cs_add_library(${PROJECT_NAME}
   src/skeleton_serialization.cpp
   src/sparse_graph_planner.cpp
   src/voxel_template_matcher.cpp
+
+  src/bim/bim.cpp
+  src/bim/geom.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_proto)
 

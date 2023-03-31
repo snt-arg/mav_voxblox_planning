@@ -14,6 +14,7 @@ public:
   SkeletonServer(const ros::NodeHandle &nh, const ros::NodeHandle &nh_private);
 
   void generate();
+  void generate_threaded(std::unique_ptr<Layer<EsdfVoxel>> esdf_layer);
 
   void publishData() const;
   void publishVisuals() const;
@@ -55,7 +56,9 @@ private:
   EsdfServer esdf_server_;
 
   // generator
-  SkeletonGenerator skeleton_generator_;
+  bool generating_skeleton_ = false;
+  std::mutex skeleton_generator_mutex_;
+  std::shared_ptr<SkeletonGenerator> skeleton_generator_;
 };
 
 } // namespace voxblox

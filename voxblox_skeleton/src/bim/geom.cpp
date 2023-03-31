@@ -1,0 +1,169 @@
+#include "voxblox_skeleton/bim/geom.h"
+
+#include <glog/logging.h>
+
+namespace geom {
+
+bool Cube::isPointInside(Point point) const { return false; }
+
+std::array<Triangle, 12> Cube::triangles() const {
+  return std::array<Triangle, 12>{
+      Triangle{a, h, e}, Triangle{a, d, h}, Triangle{d, g, h},
+      Triangle{d, c, g}, Triangle{a, b, d}, Triangle{d, b, c},
+      Triangle{e, h, f}, Triangle{g, h, f}, Triangle{a, e, f},
+      Triangle{a, f, b}, Triangle{b, f, g}, Triangle{b, g, c}};
+}
+
+// This function is heavily based on the example on page 141 of:
+// "Real-time collision detection" by Christer Ericson
+float TriangleGeometer::getDistanceToPoint(const Point &point) const {
+  using Vector = Point;
+
+  // Check if the point is in the region outside A
+  const Vector ab = vertices_.b - vertices_.a;
+  const Vector ac = vertices_.c - vertices_.a;
+  const Vector ap = point - vertices_.a;
+  const float d1 = ab.dot(ap);
+  const float d2 = ac.dot(ap);
+  if (d1 <= 0.0f && d2 <= 0.0f) {
+    // The barycentric coordinates are (1,0,0) => the closest point is vertex_a
+    return (vertices_.a - point).norm();
+  }
+
+  // Check if P in vertex region outside B
+  const Vector bp = point - vertices_.b;
+  const float d3 = ab.dot(bp);
+  const float d4 = ac.dot(bp);
+  if (d3 >= 0.0f && d4 <= d3) {
+    // The barycentric coordinates are (0,1,0) => the closest point is vertex_b
+    return (vertices_.b - point).norm();
+  }
+
+  // Check if P in edge region of AB, if so return projection of P onto AB
+  const float vc = d1 * d4 - d3 * d2;
+  if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
+    const float v = d1 / (d1 - d3);
+    // The barycentric coordinates are (1-v,v,0)
+    Point closest_pt = vertices_.a + v * ab;
+    return (closest_pt - point).norm();
+  }
+
+  // Check if P in vertex region outside C
+  Vector cp = point - vertices_.c;
+  const float d5 = ab.dot(cp);
+  const float d6 = ac.dot(cp);
+  if (d6 >= 0.0f && d5 <= d6) {
+    // The barycentric coordinates are (0,0,1) => the closest point is vertex_c
+    return (vertices_.c - point).norm();
+  }
+
+  // Check if P in edge region of AC, if so return projection of P onto AC
+  const float vb = d5 * d2 - d1 * d6;
+  if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
+    const float w = d2 / (d2 - d6);
+    // The barycentric coordinates are (1-w,0,w)
+    const Point closest_pt = vertices_.a + w * ac;
+    return (closest_pt - point).norm();
+  }
+
+  // Check if P in edge region of BC, if so return projection of P onto BC
+  const float va = d3 * d6 - d5 * d4;
+  if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
+    const float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+    // The barycentric coordinates are (0,1-w,w)
+    const Point closest_pt = vertices_.b + w * (vertices_.c - vertices_.b);
+    return (closest_pt - point).norm();
+  }
+
+  // P inside face region. Compute Q through its barycentric coordinates (u,v,w)
+  const float denom = 1.0f / (va + vb + vc);
+  const float v = vb * denom;
+  const float w = vc * denom;
+  // = u*a + v*b + w*c, u = va * denom = 1.0f - v - w
+  const Point closest_pt = vertices_.a + ab * v + ac * w;
+  return (closest_pt - point).norm();
+}
+
+AABB TriangleGeometer::getAABB() const {
+  return AABB(vertices_.a, vertices_.b, vertices_.c);
+}
+
+bool TriangleGeometer::getRayIntersection(
+    const Point2D &ray_yz, Point *barycentric_coordinates) const {
+  CHECK_NOTNULL(barycentric_coordinates);
+
+  // Express the vertices A, B and C relative to the point
+  const Point2D vertex_a_relative = vertices_.a.tail<2>() - ray_yz;
+  const Point2D vertex_b_relative = vertices_.b.tail<2>() - ray_yz;
+  const Point2D vertex_c_relative = vertices_.c.tail<2>() - ray_yz;
+
+  // Check the orientation of B relative to C
+  // NOTE: As a byproduct of the orientation checks, we also compute the signed
+  //       areas. After being normalized, these correspond to the barycentric
+  //       coordinates (see the end of this method).
+  const int sign_a =
+      getRelativeOrientation(vertex_b_relative, vertex_c_relative,
+                             &barycentric_coordinates->operator[](0));
+  // If the relative orientation is zero, vertices B and C must be equal.
+  // This would mean that the triangle has no surface area and the ray therefore
+  // cannot intersect it.
+  if (sign_a == 0)
+    return false;
+
+  // Check the orientation of C relative to A
+  const int sign_b =
+      getRelativeOrientation(vertex_c_relative, vertex_a_relative,
+                             &barycentric_coordinates->operator[](1));
+  // If the signs differ, the solution to the intersection equation does not lie
+  // inside the triangle (i.e. the ray does not intersect the triangle)
+  if (sign_b != sign_a)
+    return false;
+
+  // Check the orientation of A relative to B
+  const int sign_c =
+      getRelativeOrientation(vertex_a_relative, vertex_b_relative,
+                             &barycentric_coordinates->operator[](2));
+  // If the signs differ, the solution to the intersection equation does not lie
+  // inside the triangle (i.e. the ray does not intersect the triangle)
+  if (sign_c != sign_a)
+    return false;
+
+  // If the point is within the triangle,
+  // the barymetric coordinates should never be zero
+  const double sum = barycentric_coordinates->sum();
+  CHECK_NE(sum, 0);
+
+  // Normalize the barycentric coordinates
+  barycentric_coordinates->operator[](0) /= sum;
+  barycentric_coordinates->operator[](1) /= sum;
+  barycentric_coordinates->operator[](2) /= sum;
+
+  return true;
+}
+
+int TriangleGeometer::getRelativeOrientation(const Point2D &vertex_one,
+                                             const Point2D &vertex_two,
+                                             float *twice_signed_area) const {
+  CHECK_NOTNULL(twice_signed_area);
+
+  // Compute the signed area (scaled by factor 2, but we don't care)
+  *twice_signed_area =
+      vertex_one[1] * vertex_two[0] - vertex_one[0] * vertex_two[1];
+
+  // Return the relative orientation
+  if (*twice_signed_area > 0)
+    return 1;
+  else if (*twice_signed_area < 0)
+    return -1;
+  else if (vertex_two[1] > vertex_one[1])
+    return 1;
+  else if (vertex_two[1] < vertex_one[1])
+    return -1;
+  else if (vertex_one[0] > vertex_two[0])
+    return 1;
+  else if (vertex_one[0] < vertex_two[0])
+    return -1;
+  else
+    return 0; // only true when both vertices are equal
+}
+} // namespace geom
