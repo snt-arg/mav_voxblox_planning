@@ -451,7 +451,7 @@ bool VoxbloxHlPlanner::checkPhysicalConstraints(const mav_trajectory_generation:
 // find vertices worth exploring by checking which vertices have no allocated blocks nearby
 void VoxbloxHlPlanner::findSparseExplorationCandidates()
 {
-    if (!frontier_layer) {
+    if (!frontier_layer_) {
         return;
     }
 
@@ -483,7 +483,7 @@ void VoxbloxHlPlanner::findSparseExplorationCandidates()
 
         bool good_candidate = false;
 
-        const auto this_voxel = frontier_layer->getVoxelPtrByCoordinates(pos);
+        const auto this_voxel = frontier_layer_->getVoxelPtrByCoordinates(pos);
 
         int gc = 0;
 
@@ -496,7 +496,7 @@ void VoxbloxHlPlanner::findSparseExplorationCandidates()
             for (int i = 1; i < steps; ++i) {
 
                 const auto tsdf_voxel = tsdf_layer.getVoxelPtrByCoordinates(pos + dir * i * voxel_size);
-                const auto frontier_voxel = frontier_layer->getVoxelPtrByCoordinates(pos + dir * i * voxel_size);
+                const auto frontier_voxel = frontier_layer_->getVoxelPtrByCoordinates(pos + dir * i * voxel_size);
 
                 if (!tsdf_voxel || (tsdf_voxel && tsdf_voxel->distance < 0 && tsdf_voxel->weight > 1e-3)) {
                     break;
@@ -567,9 +567,10 @@ void VoxbloxHlPlanner::findExplorationBoundary()
     const size_t vps = tsdf.voxels_per_side();
     const size_t num_voxels_per_block = vps * vps * vps;
 
+    // TODO: update rather then recreate
     // create a new voxblox layer with frontier voxels
     // if (!frontier_layer) {
-    frontier_layer = std::make_shared<Layer<OccupancyVoxel>>(voxel_size, vps);
+    frontier_layer_ = std::make_shared<Layer<OccupancyVoxel>>(voxel_size, vps);
     // }
 
     const std::array<voxblox::VoxelIndex, 8> neighbours = {
@@ -611,9 +612,10 @@ void VoxbloxHlPlanner::findExplorationBoundary()
                         }
                     }
 
+                    // add candidate do the frontier layer
                     if (candidate) {
-                        auto frontier_block = frontier_layer->allocateBlockPtrByIndex(block_index);
-                        auto voxel = frontier_layer->getVoxelPtrByGlobalIndex(global_index);
+                        auto frontier_block = frontier_layer_->allocateBlockPtrByIndex(block_index);
+                        auto voxel = frontier_layer_->getVoxelPtrByGlobalIndex(global_index);
                         if (voxel) {
                             voxel->observed = true;
                             voxel->probability_log = 0.99;
@@ -626,9 +628,48 @@ void VoxbloxHlPlanner::findExplorationBoundary()
         }
     }
 
+    // sparsen
+    auto new_frontier_layer = frontier_layer_;
+    frontier_layer_ = std::make_shared<Layer<OccupancyVoxel>>(voxel_size, vps);
+
+    new_frontier_layer->getAllAllocatedBlocks(&block_indices);
+    for (auto block_index : block_indices) {
+        auto& block = new_frontier_layer->getBlockByIndex(block_index);
+
+        for (auto linear_index = 0; linear_index < num_voxels_per_block; ++linear_index) {
+            auto& voxel = block.getVoxelByLinearIndex(linear_index);
+            const auto voxel_index = block.computeVoxelIndexFromLinearIndex(linear_index);
+            const auto pos = block.computeCoordinatesFromLinearIndex(linear_index);
+            const auto global_index = getGlobalVoxelIndexFromBlockAndVoxelIndex(block_index, voxel_index, vps);
+
+            if (!voxel.observed) {
+                continue;
+            }
+
+            int nb_count = 0;
+            for (const auto& nbp : neighbours) {
+                auto nb_global_index = global_index + nbp.cast<long int>();
+                auto nb_voxel = new_frontier_layer->getVoxelPtrByGlobalIndex(nb_global_index);
+
+                if (nb_voxel && nb_voxel->observed) {
+                    nb_count++;
+                }
+            }
+
+            if (nb_count > 0) {
+                auto block = frontier_layer_->allocateBlockPtrByIndex(block_index);
+                auto voxel = frontier_layer_->getVoxelPtrByGlobalIndex(global_index);
+                if (voxel) {
+                    voxel->observed = true;
+                    voxel->probability_log = 0.99;
+                }
+            }
+        }
+    }
+
     // use the default voxblox visualization
     visualization_msgs::MarkerArray markers;
-    voxblox::createOccupancyBlocksFromOccupancyLayer(*frontier_layer, frame_id_, &markers);
+    voxblox::createOccupancyBlocksFromOccupancyLayer(*frontier_layer_, frame_id_, &markers);
     exploration_frontier_vis_pub_.publish(markers);
 }
 
