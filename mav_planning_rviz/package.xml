@@ -24,6 +24,7 @@
   <depend>visualization_msgs</depend>
   <depend>rviz</depend>
   <depend>mav_visualization</depend>
+  <depend>graph_manager_msgs</depend>
 
   <export>
       <rviz plugin="${prefix}/plugin_description.xml"/>
