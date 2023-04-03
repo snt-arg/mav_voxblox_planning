@@ -94,22 +94,6 @@ BimMap parse_bim(const std::string &filename) {
 
     });
   }
-  // std::transform(
-  //     entities.begin(), entities.end(), walls.begin(), [](const auto &entity)
-  //     {
-  //       Wall wall;
-  //       try {
-  //         wall.length = entity["Length"].asFloat();
-  //         wall.min = {entity["X-min"].asFloat(), entity["Y-min"].asFloat(),
-  //                     entity["Z-min"].asFloat()};
-  //         wall.nor = {entity["X-nor"].asFloat(), entity["Y-nor"].asFloat()};
-  //         wall.thickness = entity["thickness"].asFloat();
-  //         wall.tag = entity["TAG"].asString();
-  //       } catch () {
-  //         std::cerr << "Could not parse wall\n" << entity << std::endl;
-  //       }
-  //       return wall;
-  //     });
 
   // calculate some basic map information
   // TODO

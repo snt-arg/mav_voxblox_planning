@@ -78,9 +78,9 @@ void visualizeBIM(const bim::BimMap &map,
     wall_marker.color.g = 0.5;
     wall_marker.color.b = 0.5;
     wall_marker.ns = "wall " + wall.tag;
-    wall_marker.pose.position.x = wall.min.x(); //- wall_marker.scale.x / 2.0;
-    wall_marker.pose.position.y = wall.min.y(); //- wall_marker.scale.y / 2.0;
-    wall_marker.pose.position.z = wall.min.z(); //- wall_marker.scale.z / 2.0;
+    wall_marker.pose.position.x = wall.min.x();
+    wall_marker.pose.position.y = wall.min.y();
+    wall_marker.pose.position.z = wall.min.z();
 
     auto theta = std::atan2(wall.nor.y(), wall.nor.x());
 
@@ -88,11 +88,11 @@ void visualizeBIM(const bim::BimMap &map,
     auto quat = Eigen::Quaternionf(aa);
 
     auto R = Eigen::Affine3f(quat);
-    auto tr = Eigen::Affine3f(Eigen::Translation3f(
-        Eigen::Vector3f{-wall_marker.scale.x / 2.0, wall_marker.scale.y / 2.0,
-                        wall_marker.scale.z / 2.0}));
+    auto tr =
+        Eigen::Vector4f{-wall_marker.scale.x / 2.0, wall_marker.scale.y / 2.0,
+                        wall_marker.scale.z / 2.0, 0.0};
 
-    auto o = (R * tr).translation();
+    auto o = R.matrix() * tr;
 
     wall_marker.pose.position.x -= o.x();
     wall_marker.pose.position.y -= o.y();
@@ -106,6 +106,32 @@ void visualizeBIM(const bim::BimMap &map,
     wall_marker.pose.orientation.y = quat.y();
     wall_marker.pose.orientation.z = quat.z();
 
+    visualization_msgs::Marker wall_marker_norm;
+    wall_marker_norm.type = visualization_msgs::Marker::ARROW;
+    wall_marker_norm.ns = wall.tag + "norm";
+    geometry_msgs::Point start;
+    start.x = wall.min.x() - o.x();
+    start.y = wall.min.y() - o.y();
+    start.z = wall.min.z() + o.z();
+
+    geometry_msgs::Point end;
+    end.x = wall.min.x() + wall.nor.x() * 1.5 - o.x();
+    end.y = wall.min.y() + wall.nor.y() * 1.5 - o.y();
+    end.z = wall.min.z() + o.z();
+
+    ROS_INFO("x %f y %f z %f", o.x(), o.y(), o.z());
+
+    wall_marker_norm.points.push_back(start);
+    wall_marker_norm.points.push_back(end);
+    wall_marker_norm.header.frame_id = frame_id;
+    wall_marker_norm.pose.orientation.w = 1.0;
+    wall_marker_norm.scale.x = 0.1;
+    wall_marker_norm.scale.y = 0.1;
+    wall_marker_norm.scale.z = 0.1;
+    wall_marker_norm.color.a = 1.0;
+    wall_marker_norm.color.r = 1.0;
+
     markers->markers.push_back(wall_marker);
+    markers->markers.push_back(wall_marker_norm);
   }
 }
