@@ -7,7 +7,7 @@
 
 #include <boost/lockfree/spsc_queue.hpp>
 
-#include "voxblox_skeleton/bim/bim.h"
+#include "voxblox_skeleton/ros/bim_vis.h"
 
 namespace voxblox {
 
@@ -69,6 +69,13 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
   sparse_graph_vis_pub_ =
       nh_private_.advertise<visualization_msgs::MarkerArray>(
           "skeleton_sparse_graph", 1, false);
+
+  intersection_layer_vis_pub_ =
+      nh_private_.advertise<visualization_msgs::MarkerArray>(
+          "intersections_vis", 1, false);
+
+  bim_vis_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>(
+      "bim_vis", 1, false);
 
   // subscribers
   sparse_graph_sub_ =
@@ -137,9 +144,14 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
   if (!bim_filename.empty()) {
     ROS_INFO("Loading bim map '%s'", bim_filename.c_str());
 
-    const auto bim_map = bim::parse_bim(bim_filename);
-    bim::generateTsdfLayer(bim_map,
-                           *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
+    bim_map_ = bim::parse_bim(bim_filename);
+
+    esdf_server_.clear();
+    intersection_layer_ = bim::generateTsdfLayer(
+        bim_map_, *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
+
+    esdf_server_.updateEsdf();
+    esdf_server_.generateMesh();
   }
 }
 
@@ -257,6 +269,20 @@ void SkeletonServer::publishVisuals() const {
   visualization_msgs::MarkerArray marker_array;
   visualizeSkeletonGraph(graph, world_frame_, &marker_array, false, false);
   sparse_graph_vis_pub_.publish(marker_array);
+
+  // intersections
+  if (intersection_layer_) {
+    visualization_msgs::MarkerArray marker_array;
+    visualizeIntersectionLayer(*intersection_layer_, &marker_array,
+                               world_frame_);
+    intersection_layer_vis_pub_.publish(marker_array);
+  }
+
+  if (!bim_map_.empty()) {
+    visualization_msgs::MarkerArray marker_array;
+    visualizeBIM(bim_map_, &marker_array, world_frame_);
+    bim_vis_pub_.publish(marker_array);
+  }
 }
 
 const SparseSkeletonGraph &SkeletonServer::getSparseGraph() const {

@@ -2,6 +2,7 @@
 
 #include <ros/ros.h>
 
+#include "voxblox_skeleton/bim/bim.h"
 #include "voxblox_skeleton/skeleton_generator.h"
 #include <voxblox_ros/esdf_server.h>
 
@@ -36,6 +37,9 @@ private:
   ros::Subscriber sparse_graph_sub_;
   ros::Subscriber skeleton_layer_sub_;
 
+  ros::Publisher intersection_layer_vis_pub_;
+  ros::Publisher bim_vis_pub_;
+
   ros::Timer skeleton_generator_timer_;
 
   // ros params
@@ -59,6 +63,10 @@ private:
   bool generating_skeleton_ = false;
   std::mutex skeleton_generator_mutex_;
   std::shared_ptr<SkeletonGenerator> skeleton_generator_;
+
+  // bim layer
+  std::shared_ptr<Layer<bim::IntersectionVoxel>> intersection_layer_;
+  bim::BimMap bim_map_;
 };
 
 } // namespace voxblox
