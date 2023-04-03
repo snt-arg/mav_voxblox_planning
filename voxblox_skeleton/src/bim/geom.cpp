@@ -6,13 +6,25 @@ namespace geom {
 
 bool Cube::isPointInside(Point point) const { return false; }
 
-std::array<Triangle, 12> Cube::triangles() const {
-  return std::array<Triangle, 12>{
-      Triangle{a, h, e}, Triangle{a, d, h}, Triangle{d, g, h},
-      Triangle{d, c, g}, Triangle{a, b, d}, Triangle{d, b, c},
-      Triangle{e, h, f}, Triangle{g, h, f}, Triangle{a, e, f},
-      Triangle{a, f, b}, Triangle{b, f, g}, Triangle{b, g, c}};
-}
+std::vector<Triangle> Cube::triangles() const {
+  if (is_plane) {
+    return std::vector<Triangle>{
+        Triangle{d, g, h},
+        Triangle{d, c, g},
+    };
+    // return std::vector<Triangle>{
+    //     Triangle{a, e, f},
+    //     Triangle{a, f, b},
+    // };
+  } else {
+    return std::vector<Triangle>{Triangle{a, h, e}, Triangle{a, d, h}, //
+                                 Triangle{d, g, h}, Triangle{d, c, g},
+                                 Triangle{a, b, d}, Triangle{d, b, c},
+                                 Triangle{e, h, f}, Triangle{h, g, f},
+                                 Triangle{a, e, f}, Triangle{a, f, b},
+                                 Triangle{b, f, g}, Triangle{b, g, c}};
+  }
+} // namespace geom
 
 // This function is heavily based on the example on page 141 of:
 // "Real-time collision detection" by Christer Ericson

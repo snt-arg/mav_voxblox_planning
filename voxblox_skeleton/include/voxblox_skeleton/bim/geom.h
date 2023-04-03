@@ -35,7 +35,7 @@ struct Triangle {
 
 struct Cube {
   bool isPointInside(Point point) const;
-  std::array<Triangle, 12> triangles() const;
+  std::vector<Triangle> triangles() const;
 
   Point a;
   Point b;
@@ -48,6 +48,8 @@ struct Cube {
   Point h;
 
   AABB aabb;
+
+  bool is_plane;
 };
 
 class TriangleGeometer {
