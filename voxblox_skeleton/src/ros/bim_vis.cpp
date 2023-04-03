@@ -131,7 +131,44 @@ void visualizeBIM(const bim::BimMap &map,
     wall_marker_norm.color.a = 1.0;
     wall_marker_norm.color.r = 1.0;
 
-    markers->markers.push_back(wall_marker);
-    markers->markers.push_back(wall_marker_norm);
+    // markers->markers.push_back(wall_marker);
+    // markers->markers.push_back(wall_marker_norm);
+
+    // wireframe walls
+    auto cube = wall.asCube();
+    visualization_msgs::Marker wall_wireframe;
+    wall_wireframe.header.frame_id = frame_id;
+    wall_wireframe.type = visualization_msgs::Marker::LINE_LIST;
+    wall_wireframe.ns = wall.tag + "wireframe";
+    wall_wireframe.pose.orientation.w = 1.0;
+    wall_wireframe.scale.x = 0.05;
+    wall_wireframe.scale.y = 0.05;
+    wall_wireframe.scale.z = 0.05;
+    wall_wireframe.color.a = 1.0;
+    wall_wireframe.color.r = 1.0;
+    for (auto tri : cube.triangles()) {
+      geometry_msgs::Point a;
+      a.x = tri.a.x();
+      a.y = tri.a.y();
+      a.z = tri.a.z();
+
+      geometry_msgs::Point b;
+      b.x = tri.b.x();
+      b.y = tri.b.y();
+      b.z = tri.b.z();
+
+      geometry_msgs::Point c;
+      c.x = tri.c.x();
+      c.y = tri.c.y();
+      c.z = tri.c.z();
+
+      wall_wireframe.points.push_back(a);
+      wall_wireframe.points.push_back(b);
+      wall_wireframe.points.push_back(b);
+      wall_wireframe.points.push_back(c);
+      wall_wireframe.points.push_back(c);
+      wall_wireframe.points.push_back(a);
+    }
+    markers->markers.push_back(wall_wireframe);
   }
 }
