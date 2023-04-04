@@ -70,9 +70,13 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
       nh_private_.advertise<visualization_msgs::MarkerArray>(
           "skeleton_sparse_graph", 1, false);
 
-  intersection_layer_vis_pub_ =
+  bim_intersection_layer_vis_pub_ =
       nh_private_.advertise<visualization_msgs::MarkerArray>(
-          "intersections_vis", 1, false);
+          "bim_intersections_vis", 1, false);
+
+  bim_freespace_layer_vis_pub_ =
+      nh_private_.advertise<visualization_msgs::MarkerArray>(
+          "bim_freespace_vis", 1, false);
 
   bim_vis_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>(
       "bim_vis", 1, false);
@@ -147,7 +151,8 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
     bim_map_ = bim::parse_bim(bim_filename);
 
     esdf_server_.clear();
-    intersection_layer_ = bim::generateTsdfLayer(
+
+    bim_layers_ = bim::generateTsdfLayer(
         bim_map_, *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
 
     esdf_server_.updateEsdfBatch();
@@ -271,13 +276,22 @@ void SkeletonServer::publishVisuals() const {
   sparse_graph_vis_pub_.publish(marker_array);
 
   // intersections
-  if (intersection_layer_) {
+  if (bim_layers_.intersection_layer) {
     visualization_msgs::MarkerArray marker_array;
-    visualizeIntersectionLayer(*intersection_layer_, &marker_array,
+    visualizeIntersectionLayer(*bim_layers_.intersection_layer, &marker_array,
                                world_frame_);
-    intersection_layer_vis_pub_.publish(marker_array);
+    bim_intersection_layer_vis_pub_.publish(marker_array);
   }
 
+  // freespace
+  if (bim_layers_.intersection_layer) {
+    visualization_msgs::MarkerArray marker_array;
+    visualizeIntersectionLayer(*bim_layers_.freespace_layer, &marker_array,
+                               world_frame_, 0.3f);
+    bim_freespace_layer_vis_pub_.publish(marker_array);
+  }
+
+  // bim (walls, doors etc.)
   if (!bim_map_.empty()) {
     visualization_msgs::MarkerArray marker_array;
     visualizeBIM(bim_map_, &marker_array, world_frame_);

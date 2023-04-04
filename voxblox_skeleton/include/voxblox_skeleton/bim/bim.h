@@ -40,11 +40,15 @@ private:
   geom::AABB aabb_;
 };
 
+struct BimLayers {
+  std::shared_ptr<voxblox::Layer<IntersectionVoxel>> intersection_layer;
+  std::shared_ptr<voxblox::Layer<IntersectionVoxel>> freespace_layer;
+};
+
 BimMap parse_bim(const std::string &filename);
 
-std::shared_ptr<voxblox::Layer<IntersectionVoxel>>
-generateTsdfLayer(const BimMap &bim_map,
-                  voxblox::Layer<voxblox::TsdfVoxel> &layer);
+BimLayers generateTsdfLayer(const BimMap &bim_map,
+                            voxblox::Layer<voxblox::TsdfVoxel> &layer);
 
 void integrateTriangle(const geom::Triangle &triangle,
                        voxblox::Layer<IntersectionVoxel> &intersection_layer,

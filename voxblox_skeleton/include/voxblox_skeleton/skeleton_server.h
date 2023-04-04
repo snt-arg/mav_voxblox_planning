@@ -37,7 +37,8 @@ private:
   ros::Subscriber sparse_graph_sub_;
   ros::Subscriber skeleton_layer_sub_;
 
-  ros::Publisher intersection_layer_vis_pub_;
+  ros::Publisher bim_intersection_layer_vis_pub_;
+  ros::Publisher bim_freespace_layer_vis_pub_;
   ros::Publisher bim_vis_pub_;
 
   ros::Timer skeleton_generator_timer_;
@@ -64,8 +65,8 @@ private:
   std::mutex skeleton_generator_mutex_;
   std::shared_ptr<SkeletonGenerator> skeleton_generator_;
 
-  // bim layer
-  std::shared_ptr<Layer<bim::IntersectionVoxel>> intersection_layer_;
+  // bim information
+  bim::BimLayers bim_layers_;
   bim::BimMap bim_map_;
 };
 

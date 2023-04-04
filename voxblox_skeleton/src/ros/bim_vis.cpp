@@ -5,7 +5,8 @@
 
 void visualizeIntersectionLayer(
     const voxblox::Layer<bim::IntersectionVoxel> &intersection_layer,
-    visualization_msgs::MarkerArray *markers, const std::string &frame_id) {
+    visualization_msgs::MarkerArray *markers, const std::string &frame_id,
+    float alpha) {
   CHECK_NOTNULL(markers);
 
   voxblox::BlockIndexList blocks;
@@ -19,7 +20,7 @@ void visualizeIntersectionLayer(
   marker.scale.x = voxel_size;
   marker.scale.y = voxel_size;
   marker.scale.z = voxel_size;
-  marker.color.a = 1.0;
+  marker.color.a = alpha;
   marker.color.r = 1.0;
   marker.color.g = 0;
   marker.color.b = 1.0;
@@ -56,8 +57,10 @@ void visualizeIntersectionLayer(
     }
   }
 
-  markers->markers.push_back(marker);
-  markers->markers.push_back(marker_pair);
+  if (!marker.points.empty())
+    markers->markers.push_back(marker);
+  if (!marker_pair.points.empty())
+    markers->markers.push_back(marker_pair);
 }
 
 void visualizeBIM(const bim::BimMap &map,

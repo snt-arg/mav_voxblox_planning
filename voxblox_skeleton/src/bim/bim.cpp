@@ -127,9 +127,8 @@ const std::vector<geom::Triangle> &BimMap::triangles() const {
 
 const std::vector<Wall> &BimMap::walls() const { return walls_; }
 
-std::shared_ptr<voxblox::Layer<IntersectionVoxel>>
-generateTsdfLayer(const BimMap &bim_map,
-                  voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
+BimLayers generateTsdfLayer(const BimMap &bim_map,
+                            voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
   // Process
   // 1. Integrate all triangles
   // 2. fill unoccupied space
@@ -165,7 +164,10 @@ generateTsdfLayer(const BimMap &bim_map,
   LOG(INFO) << "Compute signs...";
   updateSigns(*intersection_layer, tsdf_layer, true);
 
-  return freespace_layer;
+  return BimLayers{
+      .intersection_layer = intersection_layer,
+      .freespace_layer = freespace_layer,
+  };
 }
 
 void integrateTriangle(const geom::Triangle &triangle,
