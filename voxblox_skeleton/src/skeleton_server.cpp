@@ -150,7 +150,7 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
     intersection_layer_ = bim::generateTsdfLayer(
         bim_map_, *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
 
-    esdf_server_.updateEsdf();
+    esdf_server_.updateEsdfBatch();
     esdf_server_.generateMesh();
   }
 }

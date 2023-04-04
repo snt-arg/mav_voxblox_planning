@@ -55,6 +55,7 @@ target_link_libraries(${PROJECT_NAME}_proto ${PROTOBUF_LIBRARIES})
 cs_add_library(${PROJECT_NAME}
   src/io/skeleton_io.cpp
   src/ros/skeleton_vis.cpp
+  src/ros/bim_vis.cpp
   src/skeleton.cpp
   src/skeleton_generator.cpp
   src/skeleton_server.cpp

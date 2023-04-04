@@ -6,6 +6,12 @@ namespace geom {
 
 bool Cube::isPointInside(Point point) const { return false; }
 
+Eigen::Vector3f Triangle::normal() const {
+  auto cb = b - c;
+  auto ca = a - c;
+  return (cb.cross(ca)).normalized();
+}
+
 std::vector<Triangle> Cube::triangles() const {
   if (is_plane) {
     return std::vector<Triangle>{
@@ -178,4 +184,92 @@ int TriangleGeometer::getRelativeOrientation(const Point2D &vertex_one,
   else
     return 0; // only true when both vertices are equal
 }
+
+// Ref:
+// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/ray-triangle-intersection-geometric-solution.html
+bool TriangleGeometer::getRayIntersection3(const Point &orig,
+                                           Eigen::Vector3f dir,
+                                           float &t) const {
+  const float kEpsilon = 1e-6;
+
+  // compute the plane's normal
+  Eigen::Vector3f v0v1 = vertices_.b - vertices_.a;
+  Eigen::Vector3f v0v2 = vertices_.c - vertices_.a;
+  // no need to normalize
+  Eigen::Vector3f N = v0v1.cross(v0v2); // N
+  float area2 = N.norm();
+
+  // Step 1: finding P
+
+  // check if the ray and plane are parallel.
+  float NdotRayDirection = N.dot(dir);
+  if (fabs(NdotRayDirection) < kEpsilon) // almost 0
+    return false; // they are parallel, so they don't intersect!
+
+  // compute d parameter using equation 2
+  float d = -N.dot(vertices_.a);
+
+  // compute t (equation 3)
+  t = -(N.dot(orig) + d) / NdotRayDirection;
+
+  // check if the triangle is behind the ray
+  if (t < 0)
+    return false; // the triangle is behind
+
+  // compute the intersection point using equation 1
+  Eigen::Vector3f P = orig + t * dir;
+
+  // Step 2: inside-outside test
+  Eigen::Vector3f C; // vector perpendicular to triangle's plane
+
+  // edge 0
+  Eigen::Vector3f edge0 = vertices_.b - vertices_.a;
+  Eigen::Vector3f vp0 = P - vertices_.a;
+  C = edge0.cross(vp0);
+  if (N.dot(C) < 0)
+    return false; // P is on the right side
+
+  // edge 1
+  Eigen::Vector3f edge1 = vertices_.c - vertices_.b;
+  Eigen::Vector3f vp1 = P - vertices_.b;
+  C = edge1.cross(vp1);
+  if (N.dot(C) < 0)
+    return false; // P is on the right side
+
+  // edge 2
+  Eigen::Vector3f edge2 = vertices_.a - vertices_.c;
+  Eigen::Vector3f vp2 = P - vertices_.c;
+  C = edge2.cross(vp2);
+  if (N.dot(C) < 0)
+    return false; // P is on the right side;
+
+  return true; // this ray hits the triangle
+}
+
+std::vector<Intersection>
+getIntersections(const std::vector<Triangle> &triangles, const Point &origin,
+                 const Point &target) {
+
+  const auto taor = (target - origin);
+  const auto l = taor.norm();
+  const auto dir = taor / l;
+
+  std::vector<Intersection> intersections;
+
+  for (const auto &tri : triangles) {
+    auto geom = TriangleGeometer(tri);
+    float t = 0;
+    if (geom.getRayIntersection3(origin, dir, t) && t < l) {
+      intersections.emplace_back(
+          Intersection{.point = dir * t, .normal = tri.normal(), .t = t});
+    }
+  }
+
+  // sort so that the closest collision is the last one in the array
+  std::sort(intersections.begin(), intersections.end(),
+            [](const auto &a, const auto &b) { return a.t < b.t; });
+
+  return intersections;
+}
+
 } // namespace geom

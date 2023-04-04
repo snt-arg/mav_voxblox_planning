@@ -31,6 +31,8 @@ struct Triangle {
   Point c;
 
   Triangle(Point a, Point b, Point c) : a(a), b(b), c(c) {}
+
+  Eigen::Vector3f normal() const;
 };
 
 struct Cube {
@@ -52,6 +54,12 @@ struct Cube {
   bool is_plane;
 };
 
+struct Intersection {
+  Point point;
+  Eigen::Vector3f normal;
+  float t;
+};
+
 class TriangleGeometer {
 public:
   explicit TriangleGeometer(Triangle vertex_coordinates)
@@ -64,6 +72,9 @@ public:
   bool getRayIntersection(const Point2D &ray_yz,
                           Point *barycentric_coordinates) const;
 
+  bool getRayIntersection3(const Point &origin, Eigen::Vector3f n,
+                           float &t) const;
+
 private:
   const Triangle vertices_;
 
@@ -71,4 +82,9 @@ private:
                              const Point2D &vertex_two,
                              float *twice_signed_area) const;
 };
+
+std::vector<Intersection>
+getIntersections(const std::vector<Triangle> &triangles, const Point &origin,
+                 const Point &target);
+
 } // namespace geom

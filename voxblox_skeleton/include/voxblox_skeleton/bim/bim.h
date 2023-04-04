@@ -25,9 +25,11 @@ struct Wall {
 };
 
 struct BimMap {
-  std::vector<Wall> walls;
-
+  geom::AABB aabb() const;
   bool empty() const;
+  std::vector<geom::Triangle> triangles() const;
+
+  std::vector<Wall> walls;
 };
 
 BimMap parse_bim(const std::string &filename);
@@ -43,6 +45,11 @@ void integrateTriangle(const geom::Triangle &triangle,
 void floodfillUnoccupied(float distance_value, bool fill_inside,
                          voxblox::Layer<IntersectionVoxel> &intersection_layer,
                          voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer);
+
+void fillUnoccupied(float distance_value, const BimMap &map,
+                    voxblox::Layer<IntersectionVoxel> &intersection_layer,
+                    voxblox::Layer<IntersectionVoxel> &freespace_layer,
+                    voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer);
 
 void updateSigns(voxblox::Layer<IntersectionVoxel> &intersection_layer,
                  voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer,
@@ -83,12 +90,8 @@ getAABBIndices(voxblox::Layer<T> &layer) {
         global_voxel_index_min.cwiseMin(global_voxel_index_in_block_min);
     global_voxel_index_max =
         global_voxel_index_max.cwiseMax(global_voxel_index_in_block_max);
-
-    LOG(INFO) << "AABB MIN " << global_voxel_index_min << " MAX "
-              << global_voxel_index_max;
-
-    return {global_voxel_index_min, global_voxel_index_max};
   }
+  return {global_voxel_index_min, global_voxel_index_max};
 }
 
 } // namespace bim

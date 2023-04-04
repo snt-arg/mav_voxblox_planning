@@ -47,8 +47,6 @@ void visualizeIntersectionLayer(
         point.y = pos.y();
         point.z = pos.z();
 
-        ROS_INFO("COUNT %i", voxel.count);
-
         if (voxel.count % 2) {
           marker_pair.points.push_back(point);
         } else {
@@ -162,6 +160,7 @@ void visualizeBIM(const bim::BimMap &map,
       c.y = tri.c.y();
       c.z = tri.c.z();
 
+      wall_wireframe.points.reserve(6);
       wall_wireframe.points.push_back(a);
       wall_wireframe.points.push_back(b);
       wall_wireframe.points.push_back(b);

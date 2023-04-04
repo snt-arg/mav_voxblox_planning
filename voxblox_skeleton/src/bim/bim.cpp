@@ -13,11 +13,12 @@ geom::Cube Wall::asCube() const {
   // construct a cube from our bim information
   geom::Cube cube;
   Eigen::Vector3f nor3d = {nor.x(), nor.y(), 0};
-  Eigen::Vector3f nor_orth_3d = {nor.y(), nor.x(), 0};
+  Eigen::Vector3f nor_orth_3d = {nor.y(), nor.x(), 0}; // ?
+
   cube.a = min;
-  cube.b = min + nor_orth_3d * length;
-  cube.c = cube.b + nor3d * thickness;
-  cube.d = min + nor3d * thickness;
+  cube.b = cube.a - nor3d * thickness;
+  cube.d = cube.a - nor_orth_3d * length;
+  cube.c = cube.d - nor3d * thickness;
 
   cube.e = cube.a + geom::Point{0, 0, height};
   cube.f = cube.b + geom::Point{0, 0, height};
@@ -34,9 +35,6 @@ geom::Cube Wall::asCube() const {
   cube.aabb.addPoint(cube.h);
 
   cube.is_plane = thickness == 0;
-
-  std::cout << "AABB min" << cube.aabb.min << "AABB max" << cube.aabb.max
-            << std::endl;
 
   return cube;
 }
@@ -67,6 +65,28 @@ Json::Value parse_json(const std::string &filename) {
 
 bool BimMap::empty() const { return walls.empty(); }
 
+geom::AABB BimMap::aabb() const {
+  geom::AABB aabb;
+  for (const auto &tri : triangles()) {
+    aabb.addPoint(tri.a);
+    aabb.addPoint(tri.b);
+    aabb.addPoint(tri.c);
+  }
+
+  return aabb;
+}
+
+std::vector<geom::Triangle> BimMap::triangles() const {
+  std::vector<geom::Triangle> triangles;
+  for (const auto &wall : walls) {
+    for (const auto triangle : wall.asCube().triangles()) {
+      triangles.push_back(triangle);
+    }
+  }
+
+  return triangles;
+}
+
 BimMap parse_bim(const std::string &filename) {
   const auto root = parse_json(filename);
 
@@ -80,7 +100,6 @@ BimMap parse_bim(const std::string &filename) {
     }
 
     walls.emplace_back(Wall{
-
         .min = geom::Point{entity["X-min"].asFloat(), entity["Y-min"].asFloat(),
                            entity["Z-min"].asFloat()},
         .nor = Eigen::Vector2f{entity["X-nor"].asFloat(),
@@ -175,6 +194,10 @@ generateTsdfLayer(const BimMap &bim_map,
   auto intersection_layer =
       std::make_shared<Layer<IntersectionVoxel>>(voxel_size, voxels_per_side);
 
+  // create free space layer
+  auto freespace_layer =
+      std::make_shared<Layer<IntersectionVoxel>>(voxel_size, voxels_per_side);
+
   // populate tsdf & intersection layer
   for (auto &cube : cubes) {
     // if (!cube.is_plane)
@@ -187,13 +210,16 @@ generateTsdfLayer(const BimMap &bim_map,
     }
   }
 
-  bool fill_inside = false;
+  bool fill_inside = true;
+
+  fillUnoccupied(4 * voxel_size, bim_map, *intersection_layer, *freespace_layer,
+                 tsdf_layer);
+  updateSigns(*intersection_layer, tsdf_layer, fill_inside);
 
   // floodfillUnoccupied(4 * voxel_size, fill_inside, *intersection_layer,
   //                     tsdf_layer);
-  // updateSigns(*intersection_layer, tsdf_layer, fill_inside);
 
-  return intersection_layer;
+  return freespace_layer;
 }
 
 void integrateTriangle(const geom::Triangle &triangle,
@@ -363,6 +389,96 @@ void floodfillUnoccupied(float distance_value, bool fill_inside,
         }
         // Otherwise just move on, we're not modifying anything that's already
         // been updated.
+      }
+    }
+  }
+}
+
+void fillUnoccupied(float distance_value, const BimMap &map,
+                    voxblox::Layer<IntersectionVoxel> &intersection_layer,
+                    voxblox::Layer<IntersectionVoxel> &freespace_layer,
+                    voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
+  using namespace voxblox;
+
+  const auto voxel_size = tsdf_layer.voxel_size();
+  const auto voxel_size_inv = tsdf_layer.voxel_size_inv();
+  const auto voxels_per_side_inv = tsdf_layer.voxels_per_side_inv();
+  const auto voxels_per_side = tsdf_layer.voxels_per_side();
+
+  // collect all triangles
+  std::vector<geom::Triangle> triangles = map.triangles();
+
+  // get the AABB
+  const auto map_aabb = map.aabb();
+  const auto global_voxel_index_min =
+      GlobalIndex{(map_aabb.min * voxel_size_inv).cast<LongIndexElement>()};
+  const auto global_voxel_index_max =
+      GlobalIndex{(map_aabb.max * voxel_size_inv).cast<LongIndexElement>()};
+
+  // sweep along x
+  LongIndexElement x, y, z;
+  for (y = global_voxel_index_min.y(); y < global_voxel_index_max.y(); y++) {
+    for (z = global_voxel_index_min.z(); z < global_voxel_index_max.z(); z++) {
+      for (x = global_voxel_index_min.x(); x < global_voxel_index_max.x();
+           x++) {
+
+        auto inter_voxel =
+            intersection_layer.getVoxelPtrByGlobalIndex({x, y, z});
+
+        if (inter_voxel && inter_voxel->count > 0) {
+          continue;
+        }
+
+        const GlobalIndex global_voxel_index(x, y, z);
+        const GlobalIndex global_voxel_origin_index(
+            global_voxel_index_min.x() - 10, y, z);
+
+        auto ray_origin = global_voxel_origin_index.cast<float>() * voxel_size;
+        auto ray_target = global_voxel_index.cast<float>() * voxel_size;
+        auto ray_normal = (ray_target - ray_origin).normalized();
+
+        auto intersections =
+            geom::getIntersections(triangles, ray_origin, ray_target);
+
+        // printf("Intersections %i ro [%f %f %f], rt [%f %f %f]\n",
+        //        intersections.size(), ray_origin.x(), ray_origin.y(),
+        //        ray_origin.z(), ray_target.x(), ray_target.y(),
+        //        ray_target.z());
+
+        // for (auto inter : intersections) {
+        //   printf("Normal %f %f %f\n", inter.normal.x(), inter.normal.y(),
+        //          inter.normal.z());
+        // }
+        // return;
+
+        if (!intersections.empty() &&
+            intersections.back().normal.dot(ray_normal) > 0) {
+          {
+            // free space
+            BlockIndex block_index;
+            VoxelIndex voxel_index;
+            voxblox::getBlockAndVoxelIndexFromGlobalVoxelIndex(
+                {x, y, z}, voxels_per_side, &block_index, &voxel_index);
+
+            auto block = tsdf_layer.allocateBlockPtrByIndex(block_index);
+            auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
+            voxel.distance = distance_value;
+            voxel.weight = 1.0;
+
+            // printf("Freespace at %i %i %i\n", x, y, z);
+          }
+          {
+
+            BlockIndex block_index;
+            VoxelIndex voxel_index;
+            voxblox::getBlockAndVoxelIndexFromGlobalVoxelIndex(
+                {x, y, z}, voxels_per_side, &block_index, &voxel_index);
+
+            auto block = freespace_layer.allocateBlockPtrByIndex(block_index);
+            auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
+            voxel.count = 1;
+          }
+        }
       }
     }
   }
