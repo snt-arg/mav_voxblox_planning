@@ -24,12 +24,20 @@ struct Wall {
   std::string tag;
 };
 
-struct BimMap {
-  geom::AABB aabb() const;
-  bool empty() const;
-  std::vector<geom::Triangle> triangles() const;
+class BimMap {
+public:
+  BimMap() {}
+  BimMap(std::vector<Wall> walls);
 
-  std::vector<Wall> walls;
+  const geom::AABB &aabb() const;
+  const std::vector<geom::Triangle> &triangles() const;
+  const std::vector<Wall> &walls() const;
+  bool empty() const;
+
+private:
+  std::vector<Wall> walls_;
+  std::vector<geom::Triangle> triangles_;
+  geom::AABB aabb_;
 };
 
 BimMap parse_bim(const std::string &filename);

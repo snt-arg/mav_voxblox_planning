@@ -64,17 +64,17 @@ void visualizeBIM(const bim::BimMap &map,
                   visualization_msgs::MarkerArray *markers,
                   const std::string &frame_id) {
 
-  for (auto &wall : map.walls) {
+  for (auto &wall : map.walls()) {
     visualization_msgs::Marker wall_marker;
     wall_marker.header.frame_id = frame_id;
     wall_marker.type = visualization_msgs::Marker::CUBE;
     wall_marker.scale.x = (wall.thickness == 0 ? 0.01 : wall.thickness);
     wall_marker.scale.y = wall.length;
     wall_marker.scale.z = wall.height;
-    wall_marker.color.a = 1.0;
-    wall_marker.color.r = 0.5;
-    wall_marker.color.g = 0.5;
-    wall_marker.color.b = 0.5;
+    wall_marker.color.a = 1.0f;
+    wall_marker.color.r = 0.5f;
+    wall_marker.color.g = 0.5f;
+    wall_marker.color.b = 0.5f;
     wall_marker.ns = "wall " + wall.tag;
     wall_marker.pose.position.x = wall.min.x();
     wall_marker.pose.position.y = wall.min.y();
@@ -87,8 +87,9 @@ void visualizeBIM(const bim::BimMap &map,
 
     auto R = Eigen::Affine3f(quat);
     auto tr =
-        Eigen::Vector4f{-wall_marker.scale.x / 2.0, wall_marker.scale.y / 2.0,
-                        wall_marker.scale.z / 2.0, 0.0};
+        Eigen::Vector4d{-wall_marker.scale.x / 2.0, wall_marker.scale.y / 2.0,
+                        wall_marker.scale.z / 2.0, 0.0}
+            .cast<float>();
 
     auto o = R.matrix() * tr;
 
@@ -113,8 +114,8 @@ void visualizeBIM(const bim::BimMap &map,
     start.z = wall.min.z() + o.z();
 
     geometry_msgs::Point end;
-    end.x = wall.min.x() + wall.nor.x() * 1.5 - o.x();
-    end.y = wall.min.y() + wall.nor.y() * 1.5 - o.y();
+    end.x = wall.min.x() + wall.nor.x() * 1.5f - o.x();
+    end.y = wall.min.y() + wall.nor.y() * 1.5f - o.y();
     end.z = wall.min.z() + o.z();
 
     ROS_INFO("x %f y %f z %f", o.x(), o.y(), o.z());
@@ -123,11 +124,11 @@ void visualizeBIM(const bim::BimMap &map,
     wall_marker_norm.points.push_back(end);
     wall_marker_norm.header.frame_id = frame_id;
     wall_marker_norm.pose.orientation.w = 1.0;
-    wall_marker_norm.scale.x = 0.1;
-    wall_marker_norm.scale.y = 0.1;
-    wall_marker_norm.scale.z = 0.1;
-    wall_marker_norm.color.a = 1.0;
-    wall_marker_norm.color.r = 1.0;
+    wall_marker_norm.scale.x = 0.1f;
+    wall_marker_norm.scale.y = 0.1f;
+    wall_marker_norm.scale.z = 0.1f;
+    wall_marker_norm.color.a = 1.0f;
+    wall_marker_norm.color.r = 1.0f;
 
     // markers->markers.push_back(wall_marker);
     // markers->markers.push_back(wall_marker_norm);
@@ -139,11 +140,11 @@ void visualizeBIM(const bim::BimMap &map,
     wall_wireframe.type = visualization_msgs::Marker::LINE_LIST;
     wall_wireframe.ns = wall.tag + "wireframe";
     wall_wireframe.pose.orientation.w = 1.0;
-    wall_wireframe.scale.x = 0.05;
-    wall_wireframe.scale.y = 0.05;
-    wall_wireframe.scale.z = 0.05;
-    wall_wireframe.color.a = 1.0;
-    wall_wireframe.color.r = 1.0;
+    wall_wireframe.scale.x = 0.05f;
+    wall_wireframe.scale.y = 0.05f;
+    wall_wireframe.scale.z = 0.05f;
+    wall_wireframe.color.a = 1.0f;
+    wall_wireframe.color.r = 1.0f;
     for (auto tri : cube.triangles()) {
       geometry_msgs::Point a;
       a.x = tri.a.x();
@@ -168,6 +169,8 @@ void visualizeBIM(const bim::BimMap &map,
       wall_wireframe.points.push_back(c);
       wall_wireframe.points.push_back(a);
     }
-    markers->markers.push_back(wall_wireframe);
+
+    if (!wall_wireframe.points.empty())
+      markers->markers.push_back(wall_wireframe);
   }
 }

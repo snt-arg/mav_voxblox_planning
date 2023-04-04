@@ -63,30 +63,6 @@ Json::Value parse_json(const std::string &filename) {
   return entities;
 }
 
-bool BimMap::empty() const { return walls.empty(); }
-
-geom::AABB BimMap::aabb() const {
-  geom::AABB aabb;
-  for (const auto &tri : triangles()) {
-    aabb.addPoint(tri.a);
-    aabb.addPoint(tri.b);
-    aabb.addPoint(tri.c);
-  }
-
-  return aabb;
-}
-
-std::vector<geom::Triangle> BimMap::triangles() const {
-  std::vector<geom::Triangle> triangles;
-  for (const auto &wall : walls) {
-    for (const auto triangle : wall.asCube().triangles()) {
-      triangles.push_back(triangle);
-    }
-  }
-
-  return triangles;
-}
-
 BimMap parse_bim(const std::string &filename) {
   const auto root = parse_json(filename);
 
@@ -116,74 +92,52 @@ BimMap parse_bim(const std::string &filename) {
 
   // calculate some basic map information
   // TODO
-  BimMap map;
-  map.walls = walls;
+  BimMap map(walls);
 
-  printf("Loaded BIM map with %i walls", map.walls.size());
+  LOG(INFO) << "Loaded BIM map with '" << map.walls().size() << "' walls";
 
   return map;
 }
 
-void getAABBIndices(voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer,
-                    voxblox::GlobalIndex *global_voxel_index_min,
-                    voxblox::GlobalIndex *global_voxel_index_max) {
-  CHECK_NOTNULL(global_voxel_index_min);
-  CHECK_NOTNULL(global_voxel_index_max);
-
-  using namespace voxblox;
-
-  *global_voxel_index_min =
-      GlobalIndex::Constant(std::numeric_limits<LongIndexElement>::max());
-  *global_voxel_index_max =
-      GlobalIndex::Constant(std::numeric_limits<LongIndexElement>::min());
-
-  const auto voxel_size = tsdf_layer.voxel_size();
-  const auto voxel_size_inv = tsdf_layer.voxel_size_inv();
-  const auto voxels_per_side_inv = tsdf_layer.voxels_per_side_inv();
-  const auto voxels_per_side = tsdf_layer.voxels_per_side();
-
-  // Indices of each block's local axis aligned min and max corners
-  const VoxelIndex local_voxel_index_min(0, 0, 0);
-  const VoxelIndex local_voxel_index_max(voxels_per_side, voxels_per_side,
-                                         voxels_per_side);
-
-  // Iterate over all allocated blocks in the map
-  voxblox::BlockIndexList tsdf_block_list;
-  tsdf_layer.getAllAllocatedBlocks(&tsdf_block_list);
-  for (const voxblox::BlockIndex &block_index : tsdf_block_list) {
-    const GlobalIndex global_voxel_index_in_block_min =
-        voxblox::getGlobalVoxelIndexFromBlockAndVoxelIndex(
-            block_index, local_voxel_index_min, voxels_per_side);
-    const GlobalIndex global_voxel_index_in_block_max =
-        voxblox::getGlobalVoxelIndexFromBlockAndVoxelIndex(
-            block_index, local_voxel_index_max, voxels_per_side);
-
-    // *global_voxel_index_min =
-    //     global_voxel_index_min->cwiseMin(global_voxel_index_in_block_min);
-    // *global_voxel_index_max =
-    //     global_voxel_index_max->cwiseMax(global_voxel_index_in_block_max);
+BimMap::BimMap(std::vector<Wall> walls) : walls_(walls) {
+  // cache triangles
+  for (const auto &wall : walls_) {
+    for (const auto triangle : wall.asCube().triangles()) {
+      triangles_.push_back(triangle);
+    }
   }
+
+  // cache aabb
+  geom::AABB aabb;
+  for (const auto &tri : triangles_) {
+    aabb.addPoint(tri.a);
+    aabb.addPoint(tri.b);
+    aabb.addPoint(tri.c);
+  }
+  aabb_ = aabb;
 }
+
+bool BimMap::empty() const { return walls_.empty(); }
+
+const geom::AABB &BimMap::aabb() const { return aabb_; }
+
+const std::vector<geom::Triangle> &BimMap::triangles() const {
+  return triangles_;
+}
+
+const std::vector<Wall> &BimMap::walls() const { return walls_; }
 
 std::shared_ptr<voxblox::Layer<IntersectionVoxel>>
 generateTsdfLayer(const BimMap &bim_map,
                   voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
-  using namespace voxblox;
-
-  std::cout << "Generate tsdf" << std::endl;
-
-  // walls to cubes
-  std::vector<geom::Cube> cubes;
-  for (const auto &wall : bim_map.walls) {
-    cubes.emplace_back(wall.asCube());
-  }
-
-  std::cout << "Transformed to cubes" << std::endl;
-
   // Process
   // 1. Integrate all triangles
-  // 2. (optionally) flood-fill unoccupied space
+  // 2. fill unoccupied space
   // 3. update signs
+
+  using namespace voxblox;
+
+  LOG(INFO) << "Generating voxels from BIM...";
 
   const auto voxel_size = tsdf_layer.voxel_size();
   const auto voxel_size_inv = tsdf_layer.voxel_size_inv();
@@ -199,25 +153,17 @@ generateTsdfLayer(const BimMap &bim_map,
       std::make_shared<Layer<IntersectionVoxel>>(voxel_size, voxels_per_side);
 
   // populate tsdf & intersection layer
-  for (auto &cube : cubes) {
-    // if (!cube.is_plane)
-    //   continue;
-
-    const auto &aabb = cube.aabb;
-
-    for (auto triangle : cube.triangles()) {
-      integrateTriangle(triangle, *intersection_layer, tsdf_layer);
-    }
+  LOG(INFO) << "Integrating " << bim_map.triangles().size() << " triangles...";
+  for (auto triangle : bim_map.triangles()) {
+    integrateTriangle(triangle, *intersection_layer, tsdf_layer);
   }
 
-  bool fill_inside = true;
-
+  LOG(INFO) << "Finding freespace...";
   fillUnoccupied(4 * voxel_size, bim_map, *intersection_layer, *freespace_layer,
                  tsdf_layer);
-  updateSigns(*intersection_layer, tsdf_layer, fill_inside);
 
-  // floodfillUnoccupied(4 * voxel_size, fill_inside, *intersection_layer,
-  //                     tsdf_layer);
+  LOG(INFO) << "Compute signs...";
+  updateSigns(*intersection_layer, tsdf_layer, true);
 
   return freespace_layer;
 }
@@ -433,47 +379,29 @@ void fillUnoccupied(float distance_value, const BimMap &map,
         const GlobalIndex global_voxel_origin_index(
             global_voxel_index_min.x() - 10, y, z);
 
-        auto ray_origin = global_voxel_origin_index.cast<float>() * voxel_size;
-        auto ray_target = global_voxel_index.cast<float>() * voxel_size;
-        auto ray_normal = (ray_target - ray_origin).normalized();
+        const auto ray_origin =
+            global_voxel_origin_index.cast<float>() * voxel_size;
+        const auto ray_target = global_voxel_index.cast<float>() * voxel_size;
+        const auto ray_normal = (ray_target - ray_origin).normalized();
 
-        auto intersections =
+        const auto intersections =
             geom::getIntersections(triangles, ray_origin, ray_target);
-
-        // printf("Intersections %i ro [%f %f %f], rt [%f %f %f]\n",
-        //        intersections.size(), ray_origin.x(), ray_origin.y(),
-        //        ray_origin.z(), ray_target.x(), ray_target.y(),
-        //        ray_target.z());
-
-        // for (auto inter : intersections) {
-        //   printf("Normal %f %f %f\n", inter.normal.x(), inter.normal.y(),
-        //          inter.normal.z());
-        // }
-        // return;
 
         if (!intersections.empty() &&
             intersections.back().normal.dot(ray_normal) > 0) {
+          BlockIndex block_index;
+          VoxelIndex voxel_index;
+          voxblox::getBlockAndVoxelIndexFromGlobalVoxelIndex(
+              {x, y, z}, voxels_per_side, &block_index, &voxel_index);
           {
-            // free space
-            BlockIndex block_index;
-            VoxelIndex voxel_index;
-            voxblox::getBlockAndVoxelIndexFromGlobalVoxelIndex(
-                {x, y, z}, voxels_per_side, &block_index, &voxel_index);
-
+            // update esdf
             auto block = tsdf_layer.allocateBlockPtrByIndex(block_index);
             auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
             voxel.distance = distance_value;
             voxel.weight = 1.0;
-
-            // printf("Freespace at %i %i %i\n", x, y, z);
           }
           {
-
-            BlockIndex block_index;
-            VoxelIndex voxel_index;
-            voxblox::getBlockAndVoxelIndexFromGlobalVoxelIndex(
-                {x, y, z}, voxels_per_side, &block_index, &voxel_index);
-
+            // free space
             auto block = freespace_layer.allocateBlockPtrByIndex(block_index);
             auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
             voxel.count = 1;
@@ -489,7 +417,6 @@ void updateSigns(voxblox::Layer<IntersectionVoxel> &intersection_layer,
                  bool fill_inside) {
   using namespace voxblox;
 
-  LOG(INFO) << "Computing the signs...";
   // Get the TSDF AABB, expressed in voxel index units
   auto [global_voxel_index_min, global_voxel_index_max] =
       getAABBIndices(intersection_layer);
