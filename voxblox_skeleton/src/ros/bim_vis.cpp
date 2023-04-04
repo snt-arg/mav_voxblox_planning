@@ -143,11 +143,24 @@ void visualizeBIM(const bim::BimMap &map,
     wall_wireframe.type = visualization_msgs::Marker::LINE_LIST;
     wall_wireframe.ns = wall.tag + "wireframe";
     wall_wireframe.pose.orientation.w = 1.0;
-    wall_wireframe.scale.x = 0.05f;
-    wall_wireframe.scale.y = 0.05f;
-    wall_wireframe.scale.z = 0.05f;
+    wall_wireframe.scale.x = 0.01f;
+    wall_wireframe.scale.y = 0.01f;
+    wall_wireframe.scale.z = 0.01f;
     wall_wireframe.color.a = 1.0f;
     wall_wireframe.color.r = 1.0f;
+
+    visualization_msgs::Marker wall_wireframe_normals;
+    wall_wireframe_normals.header.frame_id = frame_id;
+    wall_wireframe_normals.type = visualization_msgs::Marker::LINE_LIST;
+    wall_wireframe_normals.ns = wall.tag + "wireframe-normal";
+    wall_wireframe_normals.pose.orientation.w = 1.0;
+    wall_wireframe_normals.scale.x = 0.01f;
+    wall_wireframe_normals.scale.y = 0.01f;
+    wall_wireframe_normals.scale.z = 0.01f;
+    wall_wireframe_normals.color.a = 1.0f;
+    wall_wireframe_normals.color.g = 1.0f;
+    wall_wireframe_normals.color.b = 1.0f;
+
     for (auto tri : cube.triangles()) {
       geometry_msgs::Point a;
       a.x = tri.a.x();
@@ -171,9 +184,29 @@ void visualizeBIM(const bim::BimMap &map,
       wall_wireframe.points.push_back(c);
       wall_wireframe.points.push_back(c);
       wall_wireframe.points.push_back(a);
+
+      // triangle normal
+      auto center = tri.center();
+      auto normal = tri.normal() * 0.1;
+
+      geometry_msgs::Point na;
+      na.x = center.x();
+      na.y = center.y();
+      na.z = center.z();
+
+      geometry_msgs::Point nb;
+      nb.x = (center + normal).x();
+      nb.y = (center + normal).y();
+      nb.z = (center + normal).z();
+
+      wall_wireframe_normals.points.reserve(2);
+      wall_wireframe_normals.points.push_back(na);
+      wall_wireframe_normals.points.push_back(nb);
     }
 
     if (!wall_wireframe.points.empty())
       markers->markers.push_back(wall_wireframe);
+    if (!wall_wireframe_normals.points.empty())
+      markers->markers.push_back(wall_wireframe_normals);
   }
 }
