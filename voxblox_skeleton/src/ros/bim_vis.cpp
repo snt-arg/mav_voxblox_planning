@@ -158,8 +158,8 @@ void visualizeBIM(const bim::BimMap &map,
     wall_wireframe_normals.scale.y = 0.01f;
     wall_wireframe_normals.scale.z = 0.01f;
     wall_wireframe_normals.color.a = 1.0f;
-    wall_wireframe_normals.color.g = 1.0f;
-    wall_wireframe_normals.color.b = 1.0f;
+    wall_wireframe_normals.color.g = 0.5f;
+    wall_wireframe_normals.color.b = 0.5f;
 
     for (auto tri : cube.triangles()) {
       geometry_msgs::Point a;
@@ -204,9 +204,25 @@ void visualizeBIM(const bim::BimMap &map,
       wall_wireframe_normals.points.push_back(nb);
     }
 
+    // tag
+    visualization_msgs::Marker wall_tag;
+    wall_tag.header.frame_id = frame_id;
+    wall_tag.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    wall_tag.ns = wall.tag + "tag";
+    wall_tag.pose.orientation.w = 1.0;
+    wall_tag.pose.position.x = wall.asCube().center().x();
+    wall_tag.pose.position.y = wall.asCube().center().y();
+    wall_tag.pose.position.z = wall.asCube().center().z();
+    wall_tag.scale.x = 0.2f;
+    wall_tag.scale.y = 0.2f;
+    wall_tag.scale.z = 0.2f;
+    wall_tag.color.a = 1.0f;
+    wall_tag.text = wall.tag;
+
     if (!wall_wireframe.points.empty())
       markers->markers.push_back(wall_wireframe);
     if (!wall_wireframe_normals.points.empty())
       markers->markers.push_back(wall_wireframe_normals);
+    markers->markers.push_back(wall_tag);
   }
 }
