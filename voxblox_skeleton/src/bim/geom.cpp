@@ -5,19 +5,16 @@
 namespace geom {
 
 bool Cube::isPointInside(Point point) const {
-
-  bool is_inside = true;
-  for (auto tri : triangles()) {
-    auto u = tri.center() - point;
-    auto n = tri.normal();
+  for (const auto &tri : triangles()) {
+    const auto u = (tri.center() - point).normalized();
+    const auto n = tri.normal();
 
     if (u.dot(n) < 0) {
-      is_inside = false;
-      break;
+      return false;
     }
   }
 
-  return is_inside;
+  return true;
 }
 
 Point Cube::center() const { return (a + b + c + d + e + f + g + h) / 8; }
