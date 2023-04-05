@@ -4,7 +4,10 @@
 
 namespace geom {
 
-bool Cube::isPointInside(Point point) const {
+bool Cube::isPointInside(const Point &point) const {
+  if (!aabb.isPointInside(point))
+    return false;
+
   for (const auto &tri : triangles()) {
     const auto u = (tri.center() - point).normalized();
     const auto n = tri.normal();

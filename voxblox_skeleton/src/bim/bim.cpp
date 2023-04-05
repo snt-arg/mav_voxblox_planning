@@ -113,7 +113,8 @@ BimMap parse_bim(const std::string &filename, float voxel_size) {
   // TODO
   BimMap map(walls, doors);
 
-  LOG(INFO) << "Loaded BIM map with '" << map.walls().size() << "' walls";
+  LOG(INFO) << "Loaded BIM map with '" << map.walls().size() << "' walls, '"
+            << map.doors().size() << "' doors";
 
   return map;
 }
@@ -122,7 +123,6 @@ BimMap::BimMap(std::vector<Wall> walls, std::vector<Door> doors)
     : walls_(walls), doors_(doors) {
   // cache triangles
   for (const auto &wall : walls_) {
-    wall.asCube().print();
     for (const auto triangle : wall.asCube().triangles()) {
       triangles_.push_back(triangle);
     }
@@ -182,8 +182,8 @@ BimLayers generateTsdfLayer(const BimMap &bim_map,
   }
 
   LOG(INFO) << "Finding freespace...";
-  fillUnoccupied(4 * voxel_size, bim_map, *intersection_layer, *freespace_layer,
-                 tsdf_layer);
+  fillUnoccupied(1.5 * voxel_size, bim_map, *intersection_layer,
+                 *freespace_layer, tsdf_layer);
 
   LOG(INFO) << "Compute signs...";
   updateSigns(*intersection_layer, tsdf_layer, true);
@@ -391,10 +391,10 @@ void fillUnoccupied(float distance_value, const BimMap &map,
 
   // get the AABB
   const auto map_aabb = map.aabb();
-  const auto global_voxel_index_min =
-      GlobalIndex{(map_aabb.min * voxel_size_inv).cast<LongIndexElement>()};
-  const auto global_voxel_index_max =
-      GlobalIndex{(map_aabb.max * voxel_size_inv).cast<LongIndexElement>()};
+  const auto global_voxel_index_min = GlobalIndex{
+      (map_aabb.min * voxel_size_inv).array().floor().cast<LongIndexElement>()};
+  const auto global_voxel_index_max = GlobalIndex{
+      (map_aabb.max * voxel_size_inv).array().ceil().cast<LongIndexElement>()};
 
   // sweep along x
   LongIndexElement x, y, z;

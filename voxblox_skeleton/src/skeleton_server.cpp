@@ -115,6 +115,22 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
   skeleton_generator_->setNumNeighborsForEdge(num_neighbors_for_edge_);
   skeleton_generator_->setMinGvdDistance(min_gvd_distance_);
 
+  // load bim
+  if (!bim_filename.empty()) {
+    ROS_INFO("Loading bim map '%s'", bim_filename.c_str());
+
+    auto vs = esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr()->voxel_size();
+    bim_map_ = bim::parse_bim(bim_filename, vs);
+
+    esdf_server_.clear();
+
+    bim_layers_ = bim::generateTsdfLayer(
+        bim_map_, *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
+
+    esdf_server_.updateEsdfBatch();
+    esdf_server_.generateMesh();
+  }
+
   // timers
   if (generation_interval_ > 0.0) {
     skeleton_generator_timer_ = nh_.createTimer(
@@ -142,21 +158,6 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
         });
   } else {
     ROS_INFO("Skeleton generation disabled");
-  }
-
-  // load bim
-  if (!bim_filename.empty()) {
-    ROS_INFO("Loading bim map '%s'", bim_filename.c_str());
-
-    bim_map_ = bim::parse_bim(bim_filename);
-
-    esdf_server_.clear();
-
-    bim_layers_ = bim::generateTsdfLayer(
-        bim_map_, *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
-
-    esdf_server_.updateEsdfBatch();
-    esdf_server_.generateMesh();
   }
 }
 
@@ -287,7 +288,7 @@ void SkeletonServer::publishVisuals() const {
   if (bim_layers_.intersection_layer) {
     visualization_msgs::MarkerArray marker_array;
     visualizeIntersectionLayer(*bim_layers_.freespace_layer, &marker_array,
-                               world_frame_, 0.3f);
+                               world_frame_);
     bim_freespace_layer_vis_pub_.publish(marker_array);
   }
 

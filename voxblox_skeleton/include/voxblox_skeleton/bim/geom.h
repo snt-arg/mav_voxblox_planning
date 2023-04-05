@@ -23,6 +23,12 @@ struct AABB {
     min = min.cwiseMin(a);
     max = max.cwiseMax(a);
   }
+
+  bool isPointInside(const Point &a) const {
+    return a.x() > min.x() && a.x() < max.x() && //
+           a.y() > min.y() && a.y() < max.y() && //
+           a.z() > min.z() && a.z() < max.z();
+  }
 };
 
 struct Triangle {
@@ -37,7 +43,7 @@ struct Triangle {
 };
 
 struct Cube {
-  bool isPointInside(Point point) const;
+  bool isPointInside(const Point &point) const;
   std::vector<Triangle> triangles() const;
   Point center() const;
   void print() const;
