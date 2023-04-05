@@ -1,0 +1,234 @@
+[
+  {
+    "type": "wall",
+    "TAG": 1798556,
+    "X-min": 5.84,
+    "Y-min": 8.247,
+    "Z-min": 0.94,
+    "X-nor": -1,
+    "Y-nor": -0.0568081,
+    "Length": 4.77,
+    "thickness": 0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 1798557,
+    "X-min": -2.227,
+    "Y-min": -1.442,
+    "Z-min": 0.94,
+    "X-nor": -1,
+    "Y-nor": 0,
+    "Length": 14.44,
+    "thickness": 0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 1876268,
+    "X-min": -1.987,
+    "Y-min": 8.197,
+    "Z-min": 0.939,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 3.36,
+    "thickness": -0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 1905380,
+    "X-min": 0.032,
+    "Y-min": 4.507,
+    "Z-min": 0.94,
+    "X-nor": -1,
+    "Y-nor": 0,
+    "Length": 0.6,
+    "thickness": 0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 1905454,
+    "X-min": 5.021,
+    "Y-min": -1.442,
+    "Z-min": 0.94,
+    "X-nor": -1,
+    "Y-nor": 0,
+    "Length": 9.45,
+    "thickness": 0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 1905639,
+    "X-min": 1.492,
+    "Y-min": 8.067,
+    "Z-min": 0.94,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 3.52,
+    "thickness": -0.12
+  },
+  {
+    "type": "wall",
+    "TAG": 1906476,
+    "X-min": 5.021,
+    "Y-min": 8.007,
+    "Z-min": 0.94,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 1.1,
+    "thickness": -0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 1966157,
+    "X-min": -1.987,
+    "Y-min": 1.787,
+    "Z-min": 0.94,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 3.36,
+    "thickness": 0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 2035146,
+    "X-min": -1.987,
+    "Y-min": 6.977,
+    "Z-min": 0.94,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 2.14,
+    "thickness": -0.12
+  },
+  {
+    "type": "wall",
+    "TAG": 2035148,
+    "X-min": 0.157,
+    "Y-min": 6.612,
+    "Z-min": 0.94,
+    "X-nor": -1,
+    "Y-nor": 0,
+    "Length": 1.58,
+    "thickness": 0.115
+  },
+  {
+    "type": "wall",
+    "TAG": 2035149,
+    "X-min": -1.987,
+    "Y-min": 6.612,
+    "Z-min": 0.94,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 2.14,
+    "thickness": -0.115
+  },
+  {
+    "type": "wall",
+    "TAG": 2035947,
+    "X-min": 1.492,
+    "Y-min": 10.617,
+    "Z-min": 1.11,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 4.22,
+    "thickness": -0.12
+  },
+  {
+    "type": "wall",
+    "TAG": 2036552,
+    "X-min": 1.372,
+    "Y-min": -1.202,
+    "Z-min": 0.939,
+    "X-nor": -1,
+    "Y-nor": 0,
+    "Length": 10.05,
+    "thickness": 0.12
+  },
+  {
+    "type": "wall",
+    "TAG": 2039543,
+    "X-min": 1.492,
+    "Y-min": 3.707,
+    "Z-min": 1.11,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 3.52,
+    "thickness": 0.12
+  },
+  {
+    "type": "wall",
+    "TAG": 2205122,
+    "X-min": -1.987,
+    "Y-min": 12.757,
+    "Z-min": 0.94,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 7.59,
+    "thickness": -0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 2242859,
+    "X-min": -1.987,
+    "Y-min": -1.442,
+    "Z-min": 0.94,
+    "X-nor": 0,
+    "Y-nor": 1,
+    "Length": 7,
+    "thickness": -0.24
+  },
+  {
+    "type": "wall",
+    "TAG": 2286169,
+    "X-min": 1.372,
+    "Y-min": 10.017,
+    "Z-min": 0.94,
+    "X-nor": -1,
+    "Y-nor": 0,
+    "Length": 1.54,
+    "thickness": 0.12
+  },
+  {
+    "type": "door",
+    "TAG": 1907599,
+    "X-min": 1.357,
+    "Y-min": 2.052,
+    "Z-min": 0.94,
+    "r1": 284,
+    "r2": 302
+  },
+  {
+    "type": "door",
+    "TAG": 2029203,
+    "X-min": 1.357,
+    "Y-min": 4.472,
+    "Z-min": 0.94,
+    "r1": 325,
+    "r2": 302
+  },
+  {
+    "type": "door",
+    "TAG": 2035150,
+    "X-min": 0.142,
+    "Y-min": 7.122,
+    "Z-min": 0.94,
+    "r1": 327,
+    "r2": 302
+  },
+  {
+    "type": "door",
+    "TAG": 2036110,
+    "X-min": 0.317,
+    "Y-min": 8.182,
+    "Z-min": 0.94,
+    "r1": 322,
+    "r2": 302
+  },
+  {
+    "type": "door",
+    "TAG": 2039647,
+    "X-min": 0.397,
+    "Y-min": 1.716,
+    "Z-min": 0.94,
+    "r1": 326,
+    "r2": 302
+  }
+]
