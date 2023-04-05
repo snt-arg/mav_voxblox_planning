@@ -13,12 +13,17 @@ geom::Cube Wall::asCube() const {
   // construct a cube from our bim information
   geom::Cube cube;
   Eigen::Vector3f nor3d = {nor.x(), nor.y(), 0};
-  Eigen::Vector3f nor_orth_3d = {nor.y(), nor.x(), 0}; // ?
+  Eigen::Vector3f nor_orth_3d = {-nor.y(), nor.x(), 0};
 
   cube.a = min;
   cube.b = cube.a - nor3d * thickness;
   cube.d = cube.a - nor_orth_3d * length;
   cube.c = cube.d - nor3d * thickness;
+
+  if (thickness < 0) {
+    std::swap(cube.a, cube.b);
+    std::swap(cube.c, cube.d);
+  }
 
   cube.e = cube.a + geom::Point{0, 0, height};
   cube.f = cube.b + geom::Point{0, 0, height};
@@ -40,19 +45,7 @@ geom::Cube Wall::asCube() const {
 }
 
 bool Wall::isPointInside(geom::Point point) const {
-  // const auto angle = std::atan2(nor.y(), nor.x());
-  // auto rot =
-  //     Eigen::Affine3f(Eigen::AngleAxisf(angle, Eigen::Vector3f::UnitZ()));
-  // auto trans = Eigen::Affine3f(Eigen::Translation3f(min - point));
-
-  // Point point_local = (rot.inverse() * trans).translation();
-
-  // Point max = min + Point{thickness, length, height};
-
-  // return point_local.x() >= min.x() && point_local.y() >= min.y() &&
-  //        point_local.z() >= min.z() && point_local.x() < max.x() &&
-  //        point_local.y() < max.y() && point_local.z() < max.z();
-  return false;
+  return asCube().isPointInside(point);
 }
 
 Json::Value parse_json(const std::string &filename) {
@@ -63,7 +56,7 @@ Json::Value parse_json(const std::string &filename) {
   return entities;
 }
 
-BimMap parse_bim(const std::string &filename) {
+BimMap parse_bim(const std::string &filename, float voxel_size) {
   const auto root = parse_json(filename);
 
   // create a list of walls
@@ -71,23 +64,33 @@ BimMap parse_bim(const std::string &filename) {
   for (Json::Value::ArrayIndex i = 0; i < root.size(); ++i) {
     const Json::Value entity = root[i];
 
-    if (!entity["thickness"].isDouble()) {
-      continue;
+    // parse walls
+    if (entity["type"].isString() && entity["type"] == "wall") {
+
+      float thickness = 0;
+      if (entity["thickness"].isDouble()) {
+        thickness = entity["thickness"].asFloat();
+
+        if (std::abs(voxel_size) > 0) {
+
+          thickness = std::copysign(std::max(std::abs(thickness), voxel_size),
+                                    thickness);
+        }
+      }
+
+      walls.emplace_back(Wall{
+          .min =
+              geom::Point{entity["X-min"].asFloat(), entity["Y-min"].asFloat(),
+                          entity["Z-min"].asFloat()},
+          .nor = Eigen::Vector2f{entity["X-nor"].asFloat(),
+                                 entity["Y-nor"].asFloat()}
+                     .normalized(),
+          .length = entity["Length"].asFloat(),
+          .thickness = thickness,
+          .height = 2.5f, // TODO: currently not exported
+          .tag = entity["TAG"].asString(),
+      });
     }
-
-    walls.emplace_back(Wall{
-        .min = geom::Point{entity["X-min"].asFloat(), entity["Y-min"].asFloat(),
-                           entity["Z-min"].asFloat()},
-        .nor = Eigen::Vector2f{entity["X-nor"].asFloat(),
-                               entity["Y-nor"].asFloat()},
-        .length = entity["Length"].asFloat(),
-        .thickness = entity["thickness"].isDouble()
-                         ? entity["thickness"].asFloat()
-                         : 0.0f, // a plane
-        .height = 2.5f,          // TODO: currently not exported
-        .tag = entity["TAG"].asString(),
-
-    });
   }
 
   // calculate some basic map information
@@ -225,13 +228,18 @@ void integrateTriangle(const geom::Triangle &triangle,
         float distance = triangle_geometer.getDistanceToPoint(voxel_origin);
 
         // Update voxel if new distance is lower or if it is new
-        // TODO(victorr): Take the absolute distance, to account for signs that
-        //                might already have been computed
         if (std::abs(distance) < std::abs(voxel.distance) ||
             voxel.weight == 0.0f) {
           voxel.distance = distance;
           voxel.weight += 1;
         }
+        // {
+        //   // Allocate the block and get the voxel
+        //   auto block_ptr =
+        //       intersection_layer.allocateBlockPtrByIndex(block_index);
+        //   auto &voxel = block_ptr->getVoxelByVoxelIndex(local_voxel_index);
+        //   voxel.count = 1;
+        // }
       }
 
       // Mark intersections
@@ -286,9 +294,9 @@ void floodfillUnoccupied(float distance_value, bool fill_inside,
       getAABBIndices(intersection_layer);
 
   // We're then going to iterate over all of the voxels within the AABB.
-  // For any voxel which is unobserved and has free neighbors, mark it as free.
-  // This assumes a watertight mesh (which is what's required for this algorithm
-  // anyway).
+  // For any voxel which is unobserved and has free neighbors, mark it as
+  // free. This assumes a watertight mesh (which is what's required for this
+  // algorithm anyway).
   LongIndexElement x, y, z;
   // Iterate over x, y, z to minimize cache misses.
   for (x = global_voxel_index_min.x(); x < global_voxel_index_max.x(); x++) {

@@ -45,7 +45,7 @@ struct BimLayers {
   std::shared_ptr<voxblox::Layer<IntersectionVoxel>> freespace_layer;
 };
 
-BimMap parse_bim(const std::string &filename);
+BimMap parse_bim(const std::string &filename, float voxel_size = 0);
 
 BimLayers generateTsdfLayer(const BimMap &bim_map,
                             voxblox::Layer<voxblox::TsdfVoxel> &layer);

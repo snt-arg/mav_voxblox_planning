@@ -4,7 +4,38 @@
 
 namespace geom {
 
-bool Cube::isPointInside(Point point) const { return false; }
+bool Cube::isPointInside(Point point) const {
+
+  bool is_inside = true;
+  for (auto tri : triangles()) {
+    auto u = tri.center() - point;
+    auto n = tri.normal();
+
+    if (u.dot(n) < 0) {
+      is_inside = false;
+      break;
+    }
+  }
+
+  return is_inside;
+}
+
+Point Cube::center() const { return (a + b + c + d + e + f + g + h) / 8; }
+
+void Cube::print() const {
+  auto tris = triangles();
+  auto cc = center();
+
+  printf("[cube] center [%f, %f, %f] ok %i\n", cc.x(), cc.y(), cc.z(),
+         isPointInside(cc));
+
+  for (int i = 0; i < tris.size(); ++i) {
+    auto c = tris[i].center();
+    auto n = tris[i].normal();
+    printf("[%i] center [%f, %f, %f] normal [%f, %f, %f] \n", c.x(), c.y(),
+           c.z(), n.x(), n.y(), n.z());
+  }
+}
 
 Eigen::Vector3f Triangle::normal() const {
   auto cb = b - c;
@@ -12,23 +43,21 @@ Eigen::Vector3f Triangle::normal() const {
   return (cb.cross(ca)).normalized();
 }
 
+Point Triangle::center() const { return (a + b + c) / 3.0f; }
+
 std::vector<Triangle> Cube::triangles() const {
   if (is_plane) {
     return std::vector<Triangle>{
         Triangle{d, g, h},
         Triangle{d, c, g},
     };
-    // return std::vector<Triangle>{
-    //     Triangle{a, e, f},
-    //     Triangle{a, f, b},
-    // };
   } else {
-    return std::vector<Triangle>{Triangle{a, h, e}, Triangle{a, d, h}, //
-                                 Triangle{d, g, h}, Triangle{d, c, g},
-                                 Triangle{a, b, d}, Triangle{d, b, c},
-                                 Triangle{e, h, f}, Triangle{h, g, f},
-                                 Triangle{a, e, f}, Triangle{a, f, b},
-                                 Triangle{b, f, g}, Triangle{b, g, c}};
+    return std::vector<Triangle>{Triangle{a, e, f}, Triangle{a, f, b}, //
+                                 Triangle{a, d, h}, Triangle{a, h, e},
+                                 Triangle{a, c, d}, Triangle{a, b, c},
+                                 Triangle{e, g, f}, Triangle{e, h, g},
+                                 Triangle{b, g, c}, Triangle{b, f, g},
+                                 Triangle{c, g, h}, Triangle{c, h, d}};
   }
 } // namespace geom
 

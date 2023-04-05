@@ -32,12 +32,15 @@ struct Triangle {
 
   Triangle(Point a, Point b, Point c) : a(a), b(b), c(c) {}
 
+  Point center() const;
   Eigen::Vector3f normal() const;
 };
 
 struct Cube {
   bool isPointInside(Point point) const;
   std::vector<Triangle> triangles() const;
+  Point center() const;
+  void print() const;
 
   Point a;
   Point b;
