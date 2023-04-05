@@ -225,4 +225,61 @@ void visualizeBIM(const bim::BimMap &map,
       markers->markers.push_back(wall_wireframe_normals);
     markers->markers.push_back(wall_tag);
   }
+
+  // doors
+  for (const auto &door : map.doors()) {
+    visualization_msgs::Marker door_wireframe;
+    door_wireframe.header.frame_id = frame_id;
+    door_wireframe.type = visualization_msgs::Marker::LINE_LIST;
+    door_wireframe.ns = door.tag + "wireframe";
+    door_wireframe.pose.orientation.w = 1.0;
+    door_wireframe.scale.x = 0.01f;
+    door_wireframe.scale.y = 0.01f;
+    door_wireframe.scale.z = 0.01f;
+    door_wireframe.color.a = 1.0f;
+    door_wireframe.color.b = 1.0f;
+
+    for (auto tri : door.asCube().triangles()) {
+      geometry_msgs::Point a;
+      a.x = tri.a.x();
+      a.y = tri.a.y();
+      a.z = tri.a.z();
+
+      geometry_msgs::Point b;
+      b.x = tri.b.x();
+      b.y = tri.b.y();
+      b.z = tri.b.z();
+
+      geometry_msgs::Point c;
+      c.x = tri.c.x();
+      c.y = tri.c.y();
+      c.z = tri.c.z();
+
+      door_wireframe.points.reserve(6);
+      door_wireframe.points.push_back(a);
+      door_wireframe.points.push_back(b);
+      door_wireframe.points.push_back(b);
+      door_wireframe.points.push_back(c);
+      door_wireframe.points.push_back(c);
+      door_wireframe.points.push_back(a);
+
+      markers->markers.push_back(door_wireframe);
+    }
+
+    // tag
+    visualization_msgs::Marker door_tag;
+    door_tag.header.frame_id = frame_id;
+    door_tag.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
+    door_tag.ns = door.tag + "tag";
+    door_tag.pose.orientation.w = 1.0;
+    door_tag.pose.position.x = door.asCube().center().x();
+    door_tag.pose.position.y = door.asCube().center().y();
+    door_tag.pose.position.z = door.asCube().center().z();
+    door_tag.scale.x = 0.2f;
+    door_tag.scale.y = 0.2f;
+    door_tag.scale.z = 0.2f;
+    door_tag.color.a = 1.0f;
+    door_tag.text = door.tag;
+    markers->markers.push_back(door_tag);
+  }
 }

@@ -60,19 +60,21 @@ BimMap parse_bim(const std::string &filename, float voxel_size) {
   const auto root = parse_json(filename);
 
   // create a list of walls
+  std::vector<Door> doors;
   std::vector<Wall> walls;
   for (Json::Value::ArrayIndex i = 0; i < root.size(); ++i) {
     const Json::Value entity = root[i];
 
-    // parse walls
-    if (entity["type"].isString() && entity["type"] == "wall") {
+    // parse entities
+    if (entity["type"] == "wall") {
+      //  walls
 
       float thickness = 0;
       if (entity["thickness"].isDouble()) {
         thickness = entity["thickness"].asFloat();
 
+        // thicken?
         if (std::abs(voxel_size) > 0) {
-
           thickness = std::copysign(std::max(std::abs(thickness), voxel_size),
                                     thickness);
         }
@@ -90,21 +92,37 @@ BimMap parse_bim(const std::string &filename, float voxel_size) {
           .height = 2.5f, // TODO: currently not exported
           .tag = entity["TAG"].asString(),
       });
+    } else if (entity["type"] == "door") {
+      //  doors
+      doors.emplace_back(Door{
+          .min =
+              geom::Point{entity["X-min"].asFloat(), entity["Y-min"].asFloat(),
+                          entity["Z-min"].asFloat()},
+          .nor = Eigen::Vector2f{entity["X-nor"].asFloat(),
+                                 entity["Y-nor"].asFloat()}
+                     .normalized(),
+          .length = entity["Length"].asFloat(),
+          .thickness = entity["thickness"].asFloat(),
+          .height = 1.5f, // TODO: currently not exported
+          .tag = entity["TAG"].asString(),
+      });
     }
   }
 
   // calculate some basic map information
   // TODO
-  BimMap map(walls);
+  BimMap map(walls, doors);
 
   LOG(INFO) << "Loaded BIM map with '" << map.walls().size() << "' walls";
 
   return map;
 }
 
-BimMap::BimMap(std::vector<Wall> walls) : walls_(walls) {
+BimMap::BimMap(std::vector<Wall> walls, std::vector<Door> doors)
+    : walls_(walls), doors_(doors) {
   // cache triangles
   for (const auto &wall : walls_) {
+    wall.asCube().print();
     for (const auto triangle : wall.asCube().triangles()) {
       triangles_.push_back(triangle);
     }
@@ -129,6 +147,8 @@ const std::vector<geom::Triangle> &BimMap::triangles() const {
 }
 
 const std::vector<Wall> &BimMap::walls() const { return walls_; }
+
+const std::vector<Door> &BimMap::doors() const { return doors_; }
 
 BimLayers generateTsdfLayer(const BimMap &bim_map,
                             voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
@@ -155,6 +175,7 @@ BimLayers generateTsdfLayer(const BimMap &bim_map,
       std::make_shared<Layer<IntersectionVoxel>>(voxel_size, voxels_per_side);
 
   // populate tsdf & intersection layer
+
   LOG(INFO) << "Integrating " << bim_map.triangles().size() << " triangles...";
   for (auto triangle : bim_map.triangles()) {
     integrateTriangle(triangle, *intersection_layer, tsdf_layer);
@@ -166,6 +187,10 @@ BimLayers generateTsdfLayer(const BimMap &bim_map,
 
   LOG(INFO) << "Compute signs...";
   updateSigns(*intersection_layer, tsdf_layer, true);
+
+  LOG(INFO) << "Open doors...";
+  openDoors(4 * voxel_size, bim_map, *intersection_layer, *freespace_layer,
+            tsdf_layer);
 
   return BimLayers{
       .intersection_layer = intersection_layer,
@@ -389,9 +414,10 @@ void fillUnoccupied(float distance_value, const BimMap &map,
         const GlobalIndex global_voxel_origin_index(
             global_voxel_index_min.x() - 10, y, z);
 
-        const auto ray_origin =
-            global_voxel_origin_index.cast<float>() * voxel_size;
-        const auto ray_target = global_voxel_index.cast<float>() * voxel_size;
+        const auto ray_origin = voxblox::getCenterPointFromGridIndex(
+            global_voxel_origin_index, voxel_size);
+        const auto ray_target = voxblox::getCenterPointFromGridIndex(
+            global_voxel_index, voxel_size);
         const auto ray_normal = (ray_target - ray_origin).normalized();
 
         const auto intersections =
@@ -415,6 +441,70 @@ void fillUnoccupied(float distance_value, const BimMap &map,
             auto block = freespace_layer.allocateBlockPtrByIndex(block_index);
             auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
             voxel.count = 1;
+          }
+        }
+      }
+    }
+  }
+}
+
+void openDoors(float distance_value, const BimMap &map,
+               voxblox::Layer<IntersectionVoxel> &intersection_layer,
+               voxblox::Layer<IntersectionVoxel> &freespace_layer,
+               voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
+
+  using namespace voxblox;
+
+  const auto voxel_size = tsdf_layer.voxel_size();
+  const auto voxel_size_inv = tsdf_layer.voxel_size_inv();
+  const auto voxels_per_side_inv = tsdf_layer.voxels_per_side_inv();
+  const auto voxels_per_side = tsdf_layer.voxels_per_side();
+
+  // get the AABB
+  const auto map_aabb = map.aabb();
+  const auto global_voxel_index_min =
+      GlobalIndex{(map_aabb.min * voxel_size_inv).cast<LongIndexElement>()};
+  const auto global_voxel_index_max =
+      GlobalIndex{(map_aabb.max * voxel_size_inv).cast<LongIndexElement>()};
+
+  // sweep along x
+  LongIndexElement x, y, z;
+  for (y = global_voxel_index_min.y(); y < global_voxel_index_max.y(); y++) {
+    for (z = global_voxel_index_min.z(); z < global_voxel_index_max.z(); z++) {
+      for (x = global_voxel_index_min.x(); x < global_voxel_index_max.x();
+           x++) {
+
+        const auto voxel_origin = voxblox::getCenterPointFromGridIndex(
+            GlobalIndex{x, y, z}, voxel_size);
+
+        // doors
+        for (const auto &door : map.doors()) {
+          if (door.isPointInside(voxel_origin)) {
+            BlockIndex block_index;
+            VoxelIndex voxel_index;
+            voxblox::getBlockAndVoxelIndexFromGlobalVoxelIndex(
+                {x, y, z}, voxels_per_side, &block_index, &voxel_index);
+
+            // free space
+            {
+              auto block = freespace_layer.allocateBlockPtrByIndex(block_index);
+              auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
+              voxel.count = 1;
+            }
+            // update esdf
+            {
+              auto block = tsdf_layer.allocateBlockPtrByIndex(block_index);
+              auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
+              voxel.distance = distance_value;
+              voxel.weight = 1.0;
+            }
+            // update intersection layer
+            {
+              auto block =
+                  intersection_layer.allocateBlockPtrByIndex(block_index);
+              auto &voxel = block->getVoxelByVoxelIndex(voxel_index);
+              voxel.count = 0;
+            }
           }
         }
       }

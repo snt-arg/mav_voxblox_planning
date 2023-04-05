@@ -24,18 +24,22 @@ struct Wall {
   std::string tag;
 };
 
+using Door = Wall;
+
 class BimMap {
 public:
   BimMap() {}
-  BimMap(std::vector<Wall> walls);
+  BimMap(std::vector<Wall> walls, std::vector<Door> doors);
 
   const geom::AABB &aabb() const;
   const std::vector<geom::Triangle> &triangles() const;
   const std::vector<Wall> &walls() const;
+  const std::vector<Door> &doors() const;
   bool empty() const;
 
 private:
   std::vector<Wall> walls_;
+  std::vector<Door> doors_;
   std::vector<geom::Triangle> triangles_;
   geom::AABB aabb_;
 };
@@ -66,6 +70,11 @@ void fillUnoccupied(float distance_value, const BimMap &map,
 void updateSigns(voxblox::Layer<IntersectionVoxel> &intersection_layer,
                  voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer,
                  bool fill_inside);
+
+void openDoors(float distance_value, const BimMap &map,
+               voxblox::Layer<IntersectionVoxel> &intersection_layer,
+               voxblox::Layer<IntersectionVoxel> &freespace_layer,
+               voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer);
 
 template <typename T>
 std::tuple<voxblox::GlobalIndex, voxblox::GlobalIndex>
