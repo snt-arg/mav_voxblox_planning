@@ -26,7 +26,8 @@
 namespace mav_planning_rviz {
 
 PlanningPanel::PlanningPanel(QWidget *parent)
-    : rviz::Panel(parent), nh_(ros::NodeHandle()), interactive_markers_(nh_) {
+    : rviz::Panel(parent), nh_(ros::NodeHandle()), interactive_markers_(nh_),
+      inspection_marker_(nh_) {
   createLayout();
 }
 
@@ -43,6 +44,14 @@ void PlanningPanel::onInitialize() {
     kv.second->getPose(&pose);
     interactive_markers_.enableMarker(kv.first, pose);
   }
+
+  inspection_marker_.initialize();
+  inspection_marker_.setFrameId(vis_manager_->getFixedFrame().toStdString());
+
+  interactive_markers_.setPoseUpdatedCallback(
+      [&](const mav_msgs::EigenTrajectoryPoint &pose) {
+        inspection_marker_.setPose(pose);
+      });
 }
 
 void PlanningPanel::createLayout() {

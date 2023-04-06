@@ -28,7 +28,7 @@ void PlanningInteractiveMarkers::createMarkers() {
   set_pose_marker_.scale = 1.0;
   set_pose_marker_.controls.clear();
 
-  constexpr double kSqrt2Over2 = std::sqrt(2.0) / 2.0;
+  const double kSqrt2Over2 = std::sqrt(2.0) / 2.0;
 
   // Set up controls: x, y, z, and yaw.
   visualization_msgs::InteractiveMarkerControl control;

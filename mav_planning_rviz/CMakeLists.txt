@@ -14,6 +14,7 @@ set(HEADER_FILES_QT
   include/mav_planning_rviz/pose_widget.h
   include/mav_planning_rviz/planning_panel.h
   include/mav_planning_rviz/edit_button.h
+  include/mav_planning_rviz/planning_inspection_marker.h
 )
 
 set(SRC_FILES
@@ -21,6 +22,7 @@ set(SRC_FILES
   src/pose_widget.cpp
   src/edit_button.cpp
   src/planning_interactive_markers.cpp
+  src/planning_inspection_marker.cpp
 )
 
 # This plugin includes Qt widgets, so we must include Qt.
@@ -28,6 +30,7 @@ set(SRC_FILES
 if(rviz_QT_VERSION VERSION_LESS "5")
   message(STATUS "Using Qt4 based on the rviz_QT_VERSION: ${rviz_QT_VERSION}")
   find_package(Qt4 ${rviz_QT_VERSION} EXACT REQUIRED QtCore QtGui)
+
   # pull in all required include dirs, define QT_LIBRARIES, etc.
   include(${QT_USE_FILE})
   qt4_wrap_cpp(MOC_FILES
@@ -36,12 +39,14 @@ if(rviz_QT_VERSION VERSION_LESS "5")
 else()
   message(STATUS "Using Qt5 based on the rviz_QT_VERSION: ${rviz_QT_VERSION}")
   find_package(Qt5 ${rviz_QT_VERSION} EXACT REQUIRED Core Widgets)
+
   # make target_link_libraries(${QT_LIBRARIES}) pull in all required dependencies
   set(QT_LIBRARIES Qt5::Widgets)
   QT5_WRAP_CPP(MOC_FILES
     ${HEADER_FILES_QT}
   )
 endif()
+
 # I prefer the Qt signals and slots to avoid defining "emit", "slots",
 # etc because they can conflict with boost signals, so define QT_NO_KEYWORDS here.
 add_definitions(-DQT_NO_KEYWORDS)
@@ -50,26 +55,25 @@ add_definitions(-DQT_NO_KEYWORDS)
 # solution:
 # https://answers.ros.org/question/215487/could-not-load-panel-in-rviz-pluginlibfactory-the-plugin-for-class/
 
-#############
+# ############
 # LIBRARIES #
-#############
+# ############
 cs_add_library(${PROJECT_NAME}
   ${SRC_FILES}
   ${MOC_FILES}
 )
 target_link_libraries(${PROJECT_NAME} ${QT_LIBRARIES})
 
-
-############
+# ###########
 # BINARIES #
-############
+# ###########
 cs_add_executable(standalone_test
   src/standalone_test.cpp
 )
 target_link_libraries(standalone_test ${PROJECT_NAME})
 
-##########
+# #########
 # EXPORT #
-##########
+# #########
 cs_install()
 cs_export()

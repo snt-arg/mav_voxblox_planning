@@ -3,6 +3,7 @@
 
 #ifndef Q_MOC_RUN
 #include "mav_planning_rviz/edit_button.h"
+#include "mav_planning_rviz/planning_inspection_marker.h"
 #include "mav_planning_rviz/planning_interactive_markers.h"
 #include "mav_planning_rviz/pose_widget.h"
 #include <graph_manager_msgs/Graph.h>
@@ -106,6 +107,8 @@ protected:
   std::map<std::string, EditButton *> edit_button_map_;
   // ROS state:
   PlanningInteractiveMarkers interactive_markers_;
+
+  InspectionMarker inspection_marker_;
 
   // QT state:
   QString namespace_;
