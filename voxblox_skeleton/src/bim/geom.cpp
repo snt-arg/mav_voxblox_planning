@@ -5,8 +5,8 @@
 namespace geom {
 
 bool Cube::isPointInside(const Point &point) const {
-  // if (!aabb.isPointInside(point))
-  //   return false;
+  if (!aabb.isPointInside(point))
+    return false;
 
   for (const auto &tri : triangles()) {
     const auto u = (tri.center() - point).normalized();
