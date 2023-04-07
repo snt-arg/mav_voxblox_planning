@@ -22,6 +22,7 @@ public:
   void publishVisuals() const;
 
   const SkeletonGenerator &getSkeletonGenerator() const;
+  EsdfServer &getEsdfServer();
   const EsdfServer &getEsdfServer() const;
 
   const SparseSkeletonGraph &getSparseGraph() const;

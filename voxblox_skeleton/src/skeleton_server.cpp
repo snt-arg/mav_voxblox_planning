@@ -137,9 +137,7 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
     bim_layers_ = map_builder::generateTsdfLayer(
         bim_map_, *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
 
-    esdf_server_.updateEsdfBatch();
-    esdf_server_.updateEsdfBatch();
-    esdf_server_.updateEsdfBatch();
+    esdf_server_.updateEsdfBatch(false);
     esdf_server_.generateMesh();
   }
 
@@ -258,6 +256,8 @@ const SkeletonGenerator &SkeletonServer::getSkeletonGenerator() const {
   return *skeleton_generator_;
 }
 
+EsdfServer &SkeletonServer::getEsdfServer() { return esdf_server_; }
+
 const EsdfServer &SkeletonServer::getEsdfServer() const { return esdf_server_; }
 
 void SkeletonServer::publishData() const {
@@ -338,18 +338,26 @@ void SkeletonServer::inspectionMarkerFeedbackCallback(
     auto voxel = esdf->getVoxelPtrByCoordinates(
         {marker_pose.x, marker_pose.y, marker_pose.z});
 
+    auto offseted_pos =
+        voxblox::Point{marker_pose.x, marker_pose.y, marker_pose.z - z_offset};
+
     if (voxel) {
-      voxblox::GlobalIndex index = (voxblox::Point{marker_pose.x, marker_pose.y,
-                                                   marker_pose.z - z_offset} *
-                                    esdf->voxel_size_inv())
+      voxblox::GlobalIndex index = (offseted_pos * esdf->voxel_size_inv())
                                        .cast<voxblox::LongIndexElement>();
 
+      double esdf_distance = NAN;
+      esdf_server_.getEsdfMapPtr()->getDistanceAtPosition(
+          offseted_pos.cast<double>(), &esdf_distance);
+
       ROS_INFO("========================================");
-      ROS_INFO("ESDF Voxel INFO [%i,%i,%i]:", index.x(), index.y(), index.z());
+      ROS_INFO("ESDF Voxel INFO [%.2f,%.2f,%.2f]:", offseted_pos.x(),
+               offseted_pos.y(), offseted_pos.z());
       ROS_INFO("distance: %f", voxel->distance);
+      ROS_INFO("distance (esdf): %f", esdf_distance);
       ROS_INFO("fixed: %i", voxel->fixed);
       ROS_INFO("observed: %i", voxel->observed);
       ROS_INFO("hallucinated: %i", voxel->hallucinated);
+      ROS_INFO("index: [%li,%li,%li]", index.x(), index.y(), index.z());
       ROS_INFO("parent: [%i,%i,%i]", voxel->parent.x(), voxel->parent.y(),
                voxel->parent.z());
       ROS_INFO("========================================");
