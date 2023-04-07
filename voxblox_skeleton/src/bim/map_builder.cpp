@@ -41,8 +41,8 @@ BimLayers generateTsdfLayer(const bim::BimMap &bim_map,
   updateSigns(*intersection_layer, tsdf_layer, true);
 
   LOG(INFO) << "Integrating doors...";
-  openDoors(4 * voxel_size, bim_map, *intersection_layer, *freespace_layer,
-            tsdf_layer);
+  integrateDoors(4 * voxel_size, bim_map, *intersection_layer, *freespace_layer,
+                 tsdf_layer);
 
   // closeLayer(bim_map, tsdf_layer, 2);
   // closeLayer(bim_map, tsdf_layer, 3);
@@ -338,10 +338,10 @@ void fillUnoccupied(float distance_value, const bim::BimMap &map,
   }
 }
 
-void openDoors(float distance_value, const bim::BimMap &map,
-               voxblox::Layer<IntersectionVoxel> &intersection_layer,
-               voxblox::Layer<IntersectionVoxel> &freespace_layer,
-               voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
+void integrateDoors(float distance_value, const bim::BimMap &map,
+                    voxblox::Layer<IntersectionVoxel> &intersection_layer,
+                    voxblox::Layer<IntersectionVoxel> &freespace_layer,
+                    voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer) {
 
   using namespace voxblox;
 
@@ -357,19 +357,30 @@ void openDoors(float distance_value, const bim::BimMap &map,
   const auto global_voxel_index_max =
       GlobalIndex{(map_aabb.max * voxel_size_inv).cast<LongIndexElement>()};
 
-  // sweep along x
-  LongIndexElement x, y, z;
-  for (y = global_voxel_index_min.y(); y < global_voxel_index_max.y(); y++) {
-    for (z = global_voxel_index_min.z(); z < global_voxel_index_max.z(); z++) {
-      for (x = global_voxel_index_min.x(); x < global_voxel_index_max.x();
-           x++) {
+  for (const auto &door : map.doors()) {
+    const auto door_cube = door.asCube();
+    const auto &door_aabb = door_cube.aabb;
 
-        const auto voxel_origin = voxblox::getCenterPointFromGridIndex(
-            GlobalIndex{x, y, z}, voxel_size);
+    GlobalIndex door_min_index =
+        voxblox::getGridIndexFromOriginPoint<GlobalIndex>(
+            voxblox::Point{door_aabb.min.x(), door_aabb.min.y(),
+                           door_aabb.min.z()},
+            voxel_size_inv);
 
-        // doors
-        for (const auto &door : map.doors()) {
-          if (door.isPointInside(voxel_origin)) {
+    GlobalIndex door_max_index =
+        voxblox::getGridIndexFromOriginPoint<GlobalIndex>(
+            voxblox::Point{door_aabb.max.x(), door_aabb.max.y(),
+                           door_aabb.max.z()},
+            voxel_size_inv);
+
+    LongIndexElement x, y, z;
+    for (y = door_min_index.y(); y < door_max_index.y(); y++) {
+      for (z = door_min_index.z(); z < door_max_index.z(); z++) {
+        for (x = door_min_index.x(); x < door_max_index.x(); x++) {
+          auto voxel_center = voxblox::getCenterPointFromGridIndex(
+              GlobalIndex{x, y, z}, voxel_size);
+
+          if (door.isPointInside(voxel_center)) {
             BlockIndex block_index;
             VoxelIndex voxel_index;
             voxblox::getBlockAndVoxelIndexFromGlobalVoxelIndex(

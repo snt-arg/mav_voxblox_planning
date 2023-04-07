@@ -35,10 +35,10 @@ void updateSigns(voxblox::Layer<IntersectionVoxel> &intersection_layer,
                  voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer,
                  bool fill_inside);
 
-void openDoors(float distance_value, const bim::BimMap &map,
-               voxblox::Layer<IntersectionVoxel> &intersection_layer,
-               voxblox::Layer<IntersectionVoxel> &freespace_layer,
-               voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer);
+void integrateDoors(float distance_value, const bim::BimMap &map,
+                    voxblox::Layer<IntersectionVoxel> &intersection_layer,
+                    voxblox::Layer<IntersectionVoxel> &freespace_layer,
+                    voxblox::Layer<voxblox::TsdfVoxel> &tsdf_layer);
 
 template <typename T>
 std::tuple<voxblox::GlobalIndex, voxblox::GlobalIndex>
