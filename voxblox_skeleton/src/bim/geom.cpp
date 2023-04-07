@@ -5,8 +5,8 @@
 namespace geom {
 
 bool Cube::isPointInside(const Point &point) const {
-  if (!aabb.isPointInside(point))
-    return false;
+  // if (!aabb.isPointInside(point))
+  //   return false;
 
   for (const auto &tri : triangles()) {
     const auto u = (tri.center() - point).normalized();
@@ -294,7 +294,7 @@ getIntersections(const std::vector<Triangle> &triangles, const Point &origin,
     }
   }
 
-  // sort so that the closest collision is the last one in the array
+  // sort so that the closest collision is the first one in the array
   std::sort(intersections.begin(), intersections.end(),
             [](const auto &a, const auto &b) { return a.t < b.t; });
 

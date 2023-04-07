@@ -4,7 +4,7 @@
 #include <ros/console.h>
 
 void visualizeIntersectionLayer(
-    const voxblox::Layer<bim::IntersectionVoxel> &intersection_layer,
+    const voxblox::Layer<map_builder::IntersectionVoxel> &intersection_layer,
     visualization_msgs::MarkerArray *markers, const std::string &frame_id,
     float alpha) {
   CHECK_NOTNULL(markers);
@@ -121,8 +121,6 @@ void visualizeBIM(const bim::BimMap &map,
     end.y = wall.min.y() + wall.nor.y() * 1.5f - o.y();
     end.z = wall.min.z() + o.z();
 
-    ROS_INFO("x %f y %f z %f", o.x(), o.y(), o.z());
-
     wall_marker_norm.points.push_back(start);
     wall_marker_norm.points.push_back(end);
     wall_marker_norm.header.frame_id = frame_id;
@@ -141,7 +139,7 @@ void visualizeBIM(const bim::BimMap &map,
     visualization_msgs::Marker wall_wireframe;
     wall_wireframe.header.frame_id = frame_id;
     wall_wireframe.type = visualization_msgs::Marker::LINE_LIST;
-    wall_wireframe.ns = wall.tag + "wireframe";
+    wall_wireframe.ns = wall.tag + "-wireframe";
     wall_wireframe.pose.orientation.w = 1.0;
     wall_wireframe.scale.x = 0.01f;
     wall_wireframe.scale.y = 0.01f;
@@ -152,7 +150,7 @@ void visualizeBIM(const bim::BimMap &map,
     visualization_msgs::Marker wall_wireframe_normals;
     wall_wireframe_normals.header.frame_id = frame_id;
     wall_wireframe_normals.type = visualization_msgs::Marker::LINE_LIST;
-    wall_wireframe_normals.ns = wall.tag + "wireframe-normal";
+    wall_wireframe_normals.ns = wall.tag + "-wireframe-normal";
     wall_wireframe_normals.pose.orientation.w = 1.0;
     wall_wireframe_normals.scale.x = 0.01f;
     wall_wireframe_normals.scale.y = 0.01f;
@@ -208,7 +206,7 @@ void visualizeBIM(const bim::BimMap &map,
     visualization_msgs::Marker wall_tag;
     wall_tag.header.frame_id = frame_id;
     wall_tag.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-    wall_tag.ns = wall.tag + "tag";
+    wall_tag.ns = wall.tag + "-tag";
     wall_tag.pose.orientation.w = 1.0;
     wall_tag.pose.position.x = wall.asCube().center().x();
     wall_tag.pose.position.y = wall.asCube().center().y();
@@ -231,7 +229,7 @@ void visualizeBIM(const bim::BimMap &map,
     visualization_msgs::Marker door_wireframe;
     door_wireframe.header.frame_id = frame_id;
     door_wireframe.type = visualization_msgs::Marker::LINE_LIST;
-    door_wireframe.ns = door.tag + "wireframe";
+    door_wireframe.ns = door.tag + "-wireframe";
     door_wireframe.pose.orientation.w = 1.0;
     door_wireframe.scale.x = 0.01f;
     door_wireframe.scale.y = 0.01f;
@@ -270,7 +268,7 @@ void visualizeBIM(const bim::BimMap &map,
     visualization_msgs::Marker door_tag;
     door_tag.header.frame_id = frame_id;
     door_tag.type = visualization_msgs::Marker::TEXT_VIEW_FACING;
-    door_tag.ns = door.tag + "tag";
+    door_tag.ns = door.tag + "-tag";
     door_tag.pose.orientation.w = 1.0;
     door_tag.pose.position.x = door.asCube().center().x();
     door_tag.pose.position.y = door.asCube().center().y();

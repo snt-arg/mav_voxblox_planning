@@ -51,6 +51,10 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
   nh_private_.param("skeleton_min_gvd_distance", min_gvd_distance_,
                     min_gvd_distance_);
 
+  std::string inspection_marker_topic;
+  nh_private_.param("inspection_marker_topic", inspection_marker_topic,
+                    inspection_marker_topic);
+
   // bim params
   std::string bim_filename;
   nh_private_.param("bim_filename", bim_filename, bim_filename);
@@ -79,7 +83,7 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
           "bim_freespace_vis", 1, false);
 
   bim_vis_pub_ = nh_private_.advertise<visualization_msgs::MarkerArray>(
-      "bim_vis", 1, false);
+      "bim_vis", 1, true);
 
   // subscribers
   sparse_graph_sub_ =
@@ -104,6 +108,12 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
         skeleton_generator_->updateSkeletonFromLayer();
       });
 
+  inspection_marker_sub_ =
+      nh_private_.subscribe<visualization_msgs::InteractiveMarkerFeedback>(
+          inspection_marker_topic, 1,
+          [&](const visualization_msgs::InteractiveMarkerFeedback::ConstPtr
+                  &msg) { inspectionMarkerFeedbackCallback(msg); });
+
   // skeleton generator
   skeleton_generator_->setEsdfLayer(
       esdf_server_.getEsdfMapPtr()
@@ -124,9 +134,11 @@ SkeletonServer::SkeletonServer(const ros::NodeHandle &nh,
 
     esdf_server_.clear();
 
-    bim_layers_ = bim::generateTsdfLayer(
+    bim_layers_ = map_builder::generateTsdfLayer(
         bim_map_, *esdf_server_.getTsdfMapPtr()->getTsdfLayerPtr());
 
+    esdf_server_.updateEsdfBatch();
+    esdf_server_.updateEsdfBatch();
     esdf_server_.updateEsdfBatch();
     esdf_server_.generateMesh();
   }
@@ -224,7 +236,9 @@ void SkeletonServer::generate_threaded(
 
     // generate sparse graph
     skeleton_generator->generateSparseGraph();
-    skeleton_generator->reconnectSubgraphsAlongEsdf();
+    skeleton_generator->simplifyGraph();
+
+    // skeleton_generator->reconnectSubgraphsAlongEsdf();
 
     // ship it
     g_skeleton_generator_queue.push(skeleton_generator);
@@ -302,6 +316,45 @@ void SkeletonServer::publishVisuals() const {
 
 const SparseSkeletonGraph &SkeletonServer::getSparseGraph() const {
   return skeleton_generator_->getSparseGraph();
+}
+
+void SkeletonServer::inspectionMarkerFeedbackCallback(
+    const visualization_msgs::InteractiveMarkerFeedback::ConstPtr &feedback) {
+
+  if (esdf_server_.getEsdfMapPtr()) {
+    const auto &marker_pose = feedback->pose.position;
+    const auto voxel_size = esdf_server_.getEsdfMapPtr()->voxel_size();
+    auto z_offset = 2 * voxel_size;
+
+    if (std::remainder(z_offset, voxel_size) < kFloatEpsilon) {
+      z_offset += voxel_size / 2.0;
+    }
+
+    // set slice level
+    esdf_server_.setSliceLevel(marker_pose.z - z_offset);
+
+    // print esdf info
+    auto esdf = esdf_server_.getEsdfMapPtr()->getEsdfLayerConstPtr();
+    auto voxel = esdf->getVoxelPtrByCoordinates(
+        {marker_pose.x, marker_pose.y, marker_pose.z});
+
+    if (voxel) {
+      voxblox::GlobalIndex index = (voxblox::Point{marker_pose.x, marker_pose.y,
+                                                   marker_pose.z - z_offset} *
+                                    esdf->voxel_size_inv())
+                                       .cast<voxblox::LongIndexElement>();
+
+      ROS_INFO("========================================");
+      ROS_INFO("ESDF Voxel INFO [%i,%i,%i]:", index.x(), index.y(), index.z());
+      ROS_INFO("distance: %f", voxel->distance);
+      ROS_INFO("fixed: %i", voxel->fixed);
+      ROS_INFO("observed: %i", voxel->observed);
+      ROS_INFO("hallucinated: %i", voxel->hallucinated);
+      ROS_INFO("parent: [%i,%i,%i]", voxel->parent.x(), voxel->parent.y(),
+               voxel->parent.z());
+      ROS_INFO("========================================");
+    }
+  }
 }
 
 } // namespace voxblox

@@ -13,9 +13,6 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(JSONCPP jsoncpp)
 link_libraries(${JSONCPP_LIBRARIES})
 
-# get_target_property(JSON_INC_PATH jsoncpp_lib INTERFACE_INCLUDE_DIRECTORIES)
-# include_directories(${JSON_INC_PATH})
-
 # ###########
 # PROTOBUF #
 # ###########
@@ -65,6 +62,7 @@ cs_add_library(${PROJECT_NAME}
   src/voxel_template_matcher.cpp
 
   src/bim/bim.cpp
+  src/bim/map_builder.cpp
   src/bim/geom.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_proto)

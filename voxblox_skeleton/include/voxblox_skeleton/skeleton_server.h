@@ -2,8 +2,9 @@
 
 #include <ros/ros.h>
 
-#include "voxblox_skeleton/bim/bim.h"
+#include "voxblox_skeleton/bim/map_builder.h"
 #include "voxblox_skeleton/skeleton_generator.h"
+#include <visualization_msgs/InteractiveMarkerFeedback.h>
 #include <voxblox_ros/esdf_server.h>
 
 namespace voxblox {
@@ -25,6 +26,9 @@ public:
 
   const SparseSkeletonGraph &getSparseGraph() const;
 
+  void inspectionMarkerFeedbackCallback(
+      const visualization_msgs::InteractiveMarkerFeedback::ConstPtr &feedback);
+
 private:
   ros::NodeHandle nh_;
   ros::NodeHandle nh_private_;
@@ -40,6 +44,8 @@ private:
   ros::Publisher bim_intersection_layer_vis_pub_;
   ros::Publisher bim_freespace_layer_vis_pub_;
   ros::Publisher bim_vis_pub_;
+
+  ros::Subscriber inspection_marker_sub_;
 
   ros::Timer skeleton_generator_timer_;
 
@@ -66,7 +72,7 @@ private:
   std::shared_ptr<SkeletonGenerator> skeleton_generator_;
 
   // bim information
-  bim::BimLayers bim_layers_;
+  map_builder::BimLayers bim_layers_;
   bim::BimMap bim_map_;
 };
 
