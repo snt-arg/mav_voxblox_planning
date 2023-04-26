@@ -13,6 +13,7 @@ void visualizeIntersectionLayer(
   intersection_layer.getAllAllocatedBlocks(&blocks);
 
   auto voxel_size = intersection_layer.voxel_size();
+  auto voxel_size_half = voxel_size * 0.5f;
 
   visualization_msgs::Marker marker;
   marker.ns = "intersection_layer";
@@ -44,9 +45,9 @@ void visualizeIntersectionLayer(
         auto pos = block.origin() + voxel_index.cast<float>() * voxel_size;
         // marker
         geometry_msgs::Point point;
-        point.x = pos.x();
-        point.y = pos.y();
-        point.z = pos.z();
+        point.x = pos.x() + voxel_size_half;
+        point.y = pos.y() + voxel_size_half;
+        point.z = pos.z() + voxel_size_half;
 
         if (voxel.count % 2) {
           marker_pair.points.push_back(point);
