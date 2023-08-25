@@ -133,6 +133,7 @@ inline void visualizeSkeletonGraph(
 
     connected_vertices_struct connected_vertex;
     if (vertex.distance > 0.8) {
+    // if (vertex.distance > 0.7) {
       closed_space_marker.points.push_back(point_msg);
       connected_vertex.id = vertex_id;
       connected_vertex.visited = false;

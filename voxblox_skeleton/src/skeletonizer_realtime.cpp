@@ -62,7 +62,7 @@ class SkeletonizerNode {
 
 void SkeletonizerNode::init() {
   skeleton_generator_timer_ = nh_.createTimer(
-      ros::Duration(5.0), &SkeletonizerNode::generateSkeleton, this);
+      ros::Duration(3.0), &SkeletonizerNode::generateSkeleton, this);
 }
 
 void SkeletonizerNode::generateSkeleton(const ros::TimerEvent& event) {
