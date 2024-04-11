@@ -17,9 +17,9 @@
     <remap from="pointcloud" to="/camera/depth/points"/>
     <!-- Visualization -->
     <param name="verbose" value="false" />
+    <param name="color_mode" value="color" />
     <param name="frame_id" value="$(arg frame_id)" />
     <param name="world_frame" value="$(arg frame_id)" />
-    <param name="color_mode" value="lambert" />
     <!-- Files -->
     <param name="input_filepath" value="$(arg voxblox_path)" />
     <param name="output_filepath" value="$(arg output_path)" />
@@ -35,8 +35,8 @@
     <param name="min_separation_angle" value="0.78" /> <!-- Full Euclidean: 0.78 (45dg), quasi-Euclidean: 1.57 (90dg) -->
     <param name="icp_refine_roll_pitch" value="false" />
     <param name="esdf_add_occupied_crust" value="true" />
+    <param name="max_block_distance_from_body" value="100" />
     <param name="generate_by_layer_neighbors" value="false" />
-    <param name="max_block_distance_from_body" value="10.0" />
     <!--<param name="slice_level" value="1.0" /> -->
     <!--<param name="publish_slices" value="true" />-->
   </node>
