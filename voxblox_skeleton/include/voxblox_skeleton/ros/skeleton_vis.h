@@ -75,7 +75,7 @@ inline void connected_components(
 
 inline void visualizeSkeletonGraph(
     const SparseSkeletonGraph& graph, const std::string& frame_id,
-    visualization_msgs::MarkerArray* marker_array) {
+    visualization_msgs::MarkerArray* marker_array, const float vertex_distance_threshold = 0.8) {
   bool visualize_subgraphs = true;
   bool visualize_freespace = false;
   CHECK_NOTNULL(marker_array);
@@ -132,7 +132,8 @@ inline void visualizeSkeletonGraph(
     vertex_marker.points.push_back(point_msg);
 
     connected_vertices_struct connected_vertex;
-    if (vertex.distance > 0.8) {
+    if (vertex.distance > vertex_distance_threshold)
+    {
       closed_space_marker.points.push_back(point_msg);
       connected_vertex.id = vertex_id;
       connected_vertex.visited = false;
@@ -144,10 +145,13 @@ inline void visualizeSkeletonGraph(
       std_msgs::ColorRGBA color_msg;
       Color color = rainbowColorMap(vertex.subgraph_id % 100 / 10.0);
       colorVoxbloxToMsg(color, &color_msg);
-      if (vertex.distance > 0.8) {
+      if (vertex.distance > vertex_distance_threshold)
+      {
         vertex_marker.colors.push_back(color_msg);
         closed_space_marker.colors.push_back(color_msg);
-      } else {
+      }
+      else
+      {
         color_msg.b = 0;
         color_msg.r = 0;
         color_msg.g = 0;
@@ -158,7 +162,8 @@ inline void visualizeSkeletonGraph(
 
     if (visualize_freespace) {
       // std::cout << "vertex distance: " << vertex.distance << std::endl;
-      if (vertex.distance > 0.8) {
+      if (vertex.distance > vertex_distance_threshold)
+      {
         vertex_free_space_marker.pose.orientation.w = 1.0;
         vertex_free_space_marker.pose.position = point_msg;
         vertex_free_space_marker.scale.x = vertex.distance;

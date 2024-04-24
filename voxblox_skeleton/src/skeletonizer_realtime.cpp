@@ -56,6 +56,7 @@ class SkeletonizerNode {
   FloatingPoint min_gvd_distance_;
   bool update_esdf_;
   std::string input_filepath_, output_filepath_, sparse_graph_filepath_;
+  float vertex_distance_threshold_;
 
   ros::Timer esdf_update_timer_, skeleton_generator_timer_;
 };
@@ -91,6 +92,7 @@ void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
   nh_private_.param("frame_id", frame_id_, frame_id_);
   update_esdf_ = false;
   nh_private_.param("update_esdf", update_esdf_, update_esdf_);
+  nh_private_.param("vertex_distance_threshold", vertex_distance_threshold_, vertex_distance_threshold_);
 
   min_separation_angle_ = skeleton_generator.getMinSeparationAngle();
   nh_private_.param("min_separation_angle", min_separation_angle_,
@@ -125,7 +127,7 @@ void SkeletonizerNode::skeletonize(Layer<EsdfVoxel>* esdf_layer,
   // Now visualize the graph.
   const SparseSkeletonGraph& graph = skeleton_generator.getSparseGraph();
   visualization_msgs::MarkerArray marker_array;
-  visualizeSkeletonGraph(graph, "map_elevated", &marker_array);
+  visualizeSkeletonGraph(graph, "map_elevated", &marker_array, vertex_distance_threshold_);
   sparse_graph_pub_.publish(marker_array);
 }
 
