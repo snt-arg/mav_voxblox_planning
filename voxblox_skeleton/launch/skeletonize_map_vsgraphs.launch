@@ -9,12 +9,13 @@
   <arg name="frame_id" default="map" />
   <arg name="voxblox_path" default="$(arg base_path)/$(arg input_map_name)" />
   <arg name="output_path" default="$(arg base_path)/$(arg output_map_name)" />
-  <arg name="sparse_graph_path" default="$(arg base_path)/$(arg sparse_graph_name)" />  
+  <arg name="sparse_graph_path" default="$(arg base_path)/$(arg sparse_graph_name)" />
+  <arg name="pc_topic" default="/vs_graphs/points_map" /> <!-- ROS1-Relay: /vs_graphs/points_map , ROS1: /camera/depth/points -->
 
   <!-- Node for running the VoxBlox Skeletonizer -->
   <node name="voxblox_skeletonizer" pkg="voxblox_skeleton" type="skeletonizer_realtime" output="screen" clear_params="true" respawn="true" args="-v=1">
     <!-- Remapping topic -->
-    <remap from="pointcloud" to="/camera/depth/points"/>
+    <remap from="pointcloud" to="$(arg pc_topic)"/>
     <!-- Visualization -->
     <param name="verbose" value="false" />
     <param name="color_mode" value="color" />
